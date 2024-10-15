@@ -6,13 +6,25 @@ import (
 	"context"
 
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
+	"github.com/scylladb/scylla-operator/pkg/naming"
+	"github.com/scylladb/scylla-operator/pkg/pointer"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
-func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, managerState *state) *scyllav1.ScyllaClusterStatus {
+func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, state *managerClusterState) *scyllav1.ScyllaClusterStatus {
 	status := sc.Status.DeepCopy()
+
+	status.ManagerID = pointer.Ptr("")
+	status.Backups = []scyllav1.BackupTaskStatus{}
+	status.Repairs = []scyllav1.RepairTaskStatus{}
+
+	if state.Cluster == nil || state.Cluster.Labels[naming.OwnerUIDLabel] != string(sc.UID) {
+		return status
+	}
+
+	status.ManagerID = pointer.Ptr(state.Cluster.ID)
 
 	repairTaskClientErrorMap := map[string]string{}
 	for _, rts := range status.Repairs {
@@ -21,7 +33,6 @@ func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, managerState *s
 		}
 	}
 
-	status.Repairs = []scyllav1.RepairTaskStatus{}
 	for _, rt := range sc.Spec.Repairs {
 		repairTaskStatus := scyllav1.RepairTaskStatus{
 			TaskStatus: scyllav1.TaskStatus{
@@ -29,7 +40,7 @@ func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, managerState *s
 			},
 		}
 
-		managerTaskStatus, isInManagerState := managerState.RepairTasks[rt.Name]
+		managerTaskStatus, isInManagerState := state.RepairTasks[rt.Name]
 		if isInManagerState {
 			repairTaskStatus = managerTaskStatus
 		} else {
@@ -52,7 +63,6 @@ func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, managerState *s
 		}
 	}
 
-	status.Backups = []scyllav1.BackupTaskStatus{}
 	for _, bt := range sc.Spec.Backups {
 		backupTaskStatus := scyllav1.BackupTaskStatus{
 			TaskStatus: scyllav1.TaskStatus{
@@ -60,7 +70,7 @@ func (c *Controller) calculateStatus(sc *scyllav1.ScyllaCluster, managerState *s
 			},
 		}
 
-		managerTaskStatus, isInManagerState := managerState.BackupTasks[bt.Name]
+		managerTaskStatus, isInManagerState := state.BackupTasks[bt.Name]
 		if isInManagerState {
 			backupTaskStatus = managerTaskStatus
 		} else {
