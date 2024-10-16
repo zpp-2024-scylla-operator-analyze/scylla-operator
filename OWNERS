@@ -3,14 +3,11 @@
 filters:
   ".*":
     approvers:
-    - tnozicka
     - zimnx
+    - rzetelskik
     reviewers:
-    - tnozicka
     - zimnx
     - rzetelskik
   "go\\.(mod|sum)$":
-    required_reviewers:
-    - tnozicka
     labels:
     - area/dependency
