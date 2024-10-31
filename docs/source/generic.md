@@ -32,7 +32,7 @@ eval $(minikube docker-env)
 ## Download Scylla Operator
 In this guide you will be using the examples and manifests from [Scylla Operator repository](https://github.com/scylladb/scylla-operator), so start off by cloning it to your local machine.
 ```console
-git clone git@github.com:scylladb/scylla-operator.git
+git clone https://github.com/scylladb/scylla-operator.git
 cd scylla-operator
 ```
 
@@ -40,7 +40,7 @@ cd scylla-operator
 First deploy Cert Manager, you can either follow [upsteam instructions](https://cert-manager.io/docs/installation/kubernetes/) or use following command:
 
 ```console
-kubectl apply -f examples/common/cert-manager.yaml
+kubectl apply --server-side -f examples/common/cert-manager.yaml
 ```
 This will install Cert Manager to provision a self-signed certificate.
 
@@ -56,7 +56,7 @@ kubectl -n cert-manager rollout status deployment.apps/cert-manager-webhook
 Deploy the Scylla Operator using the following commands:
 
 ```console
-kubectl apply -f deploy/operator.yaml
+kubectl apply --server-side -f deploy/operator.yaml
 ```
 
 This will install the operator in namespace `scylla-operator`.
@@ -159,7 +159,7 @@ Change the `cluster.yaml` file from this:
 ```yaml
 spec:
   agentVersion: 3.3.3
-  version: 6.1.1
+  version: 6.2.0
   developerMode: true
   datacenter:
     name: us-east-1
@@ -167,7 +167,7 @@ spec:
 to this:
 ```yaml
 spec:
-  version: 6.1.1
+  version: 6.2.0
   alternator:
     port: 8000
     writeIsolation: only_rmw_uses_lwt
