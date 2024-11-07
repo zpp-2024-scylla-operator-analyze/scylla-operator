@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
+
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
@@ -120,15 +122,24 @@ func (o *AnalyzeOptions) Complete() error {
 }
 
 func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Command) error {
+	var errs []error
+
 	klog.Infof("%s version %s", cmd.Name(), version.Get())
 	cliflag.PrintFlags(cmd.Flags())
+	if len(o.ArchivePath) != 0 {
+		klog.InfoS("Reading must-gather archive", "Path", o.ArchivePath)
+		_, err := analyze.IndexersFromArchive(os.DirFS(o.ArchivePath))
+		if err != nil {
+			errs = append(errs, fmt.Errorf("can't create indexers from archive"))
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var err error
 	if len(o.ArchivePath) > 0 {
-		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		_, err = analyze.NewDataSourceFromArchive(ctx, o.ArchivePath)
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
