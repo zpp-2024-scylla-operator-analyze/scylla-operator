@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/scylladb/scylla-operator/pkg/analyze"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
@@ -107,6 +108,12 @@ func (o *AnalyzeOptions) Complete() error {
 func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Command) error {
 	klog.Infof("%s version %s", cmd.Name(), version.Get())
 	cliflag.PrintFlags(cmd.Flags())
+	if len(o.ArchivePath) != 0 {
+		indexers := analyze.IndexersFromArchive(o.ArchivePath)
+		if indexers == nil {
+			klog.Infof("Error when creating indexers from archive")
+		}
+	}
 
 	return nil
 }
