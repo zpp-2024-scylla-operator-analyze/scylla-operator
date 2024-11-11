@@ -1,17 +1,20 @@
 package operator
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os"
-
+	"github.com/scylladb/scylla-operator/pkg/analyze"
+	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
+	"os"
 )
 
 var (
@@ -26,6 +29,9 @@ type AnalyzeOptions struct {
 	genericclioptions.ClientConfig
 
 	ArchivePath string
+
+	kubeClient   *kubernetes.Clientset
+	scyllaClient *scyllaversioned.Clientset
 }
 
 func NewAnalyzeOptions(streams genericclioptions.IOStreams) *AnalyzeOptions {
@@ -101,12 +107,37 @@ func (o *AnalyzeOptions) Complete() error {
 		return err
 	}
 
+	o.kubeClient, err = kubernetes.NewForConfig(o.ProtoConfig)
+	if err != nil {
+		return fmt.Errorf("can't build kubernetes clientset: %w", err)
+	}
+	o.scyllaClient, err = scyllaversioned.NewForConfig(o.RestConfig)
+	if err != nil {
+		return fmt.Errorf("can't build scylla clientset: %w", err)
+	}
+
 	return nil
 }
 
 func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Command) error {
 	klog.Infof("%s version %s", cmd.Name(), version.Get())
 	cliflag.PrintFlags(cmd.Flags())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var err error
+	if len(o.ArchivePath) > 0 {
+		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		if err != nil {
+			return fmt.Errorf("can't build data source from must-gather: %w", err)
+		}
+	} else {
+		_, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+		if err != nil {
+			return fmt.Errorf("can't build data source from clients: %w", err)
+		}
+	}
 
 	return nil
 }
