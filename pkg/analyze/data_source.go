@@ -3,7 +3,11 @@ package analyze
 import (
 	"context"
 	"fmt"
+	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
+	"os"
+	"reflect"
+
 	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -113,4 +117,68 @@ func NewDataSourceFromClients(
 		ServiceAccountLister: serviceAccountLister,
 		ScyllaClusterLister:  scyllaClusterLister,
 	}, nil
+}
+
+func NewDataSourceFromArchive(
+	ctx context.Context,
+	archivePath string,
+) (*DataSource, error) {
+
+	podType := reflect.TypeOf(&corev1.Pod{})
+	serviceType := reflect.TypeOf(&corev1.Service{})
+	secretType := reflect.TypeOf(&corev1.Secret{})
+	configMapType := reflect.TypeOf(&corev1.ConfigMap{})
+	serviceAccountType := reflect.TypeOf(&corev1.ServiceAccount{})
+	scyllaClusterType := reflect.TypeOf(&scyllav1.ScyllaCluster{})
+
+	indexers, err := IndexersFromArchive(os.DirFS(archivePath))
+	if err != nil {
+		return nil, err
+	}
+
+	podIndexer, ok := indexers[podType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for Pods")
+	}
+	podLister := corev1listers.NewPodLister(podIndexer)
+
+	serviceIndexer, ok := indexers[serviceType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for Services")
+	}
+	serviceLister := corev1listers.NewServiceLister(serviceIndexer)
+
+	secretIndexer, ok := indexers[secretType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for Secrets")
+	}
+	secretLister := corev1listers.NewSecretLister(secretIndexer)
+
+	configMapIndexer, ok := indexers[configMapType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for ConfigMaps")
+	}
+	configMapLister := corev1listers.NewConfigMapLister(configMapIndexer)
+
+	serviceAccountIndexer, ok := indexers[serviceAccountType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for ServiceAccounts")
+	}
+	serviceAccountLister := corev1listers.NewServiceAccountLister(serviceAccountIndexer)
+
+	scyllaClusterIndexer, ok := indexers[scyllaClusterType]
+	if !ok {
+		return nil, fmt.Errorf("no indexer provided for ScyllaClusters")
+	}
+	scyllaClusterLister := scyllav1listers.NewScyllaClusterLister(scyllaClusterIndexer)
+
+	return &DataSource{
+		PodLister:            podLister,
+		ServiceLister:        serviceLister,
+		SecretLister:         secretLister,
+		ConfigMapLister:      configMapLister,
+		ServiceAccountLister: serviceAccountLister,
+		ScyllaClusterLister:  scyllaClusterLister,
+	}, nil
+
 }
