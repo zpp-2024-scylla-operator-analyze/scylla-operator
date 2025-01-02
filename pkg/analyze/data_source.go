@@ -7,10 +7,12 @@ import (
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	storagev1listers "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
 	"os"
@@ -23,6 +25,8 @@ type DataSource struct {
 	SecretLister         corev1listers.SecretLister
 	ConfigMapLister      corev1listers.ConfigMapLister
 	ServiceAccountLister corev1listers.ServiceAccountLister
+	StorageClassLister   storagev1listers.StorageClassLister
+	CSIDriverLister      storagev1listers.CSIDriverLister
 	ScyllaClusterLister  scyllav1listers.ScyllaClusterLister
 }
 
@@ -101,6 +105,20 @@ func NewDataSourceFromClients(
 		return nil, fmt.Errorf("can't build service account lister: %w", err)
 	}
 
+	storageClassLister, err := BuildLister(ctx, storagev1listers.NewStorageClassLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+		return kubeClient.StorageV1().StorageClasses().List(ctx, options)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't build service account lister: %w", err)
+	}
+
+	csiDriverLister, err := BuildLister(ctx, storagev1listers.NewCSIDriverLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+		return kubeClient.StorageV1().CSIDrivers().List(ctx, options)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't build service account lister: %w", err)
+	}
+
 	scyllaClusterLister, err := BuildLister(ctx, scyllav1listers.NewScyllaClusterLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return scyllaClient.ScyllaV1().ScyllaClusters(corev1.NamespaceAll).List(ctx, options)
 	})
@@ -114,6 +132,8 @@ func NewDataSourceFromClients(
 		SecretLister:         secretLister,
 		ConfigMapLister:      configMapLister,
 		ServiceAccountLister: serviceAccountLister,
+		StorageClassLister:   storageClassLister,
+		CSIDriverLister:      csiDriverLister,
 		ScyllaClusterLister:  scyllaClusterLister,
 	}, nil
 }
@@ -134,7 +154,8 @@ func NewDataSourceFromFS(
 		SecretLister:         corev1listers.NewSecretLister(indexers[reflect.TypeOf(&corev1.Secret{})]),
 		ConfigMapLister:      corev1listers.NewConfigMapLister(indexers[reflect.TypeOf(&corev1.ConfigMap{})]),
 		ServiceAccountLister: corev1listers.NewServiceAccountLister(indexers[reflect.TypeOf(&corev1.ServiceAccount{})]),
+		StorageClassLister:   storagev1listers.NewStorageClassLister(indexers[reflect.TypeOf(&storagev1.StorageClass{})]),
+		CSIDriverLister:      storagev1listers.NewCSIDriverLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.CSIDriver{}))),
 		ScyllaClusterLister:  scyllav1listers.NewScyllaClusterLister(indexers[reflect.TypeOf(&scyllav1.ScyllaCluster{})]),
 	}, nil
-
 }

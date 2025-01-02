@@ -44,6 +44,24 @@ func (d *DataSource) resourcesOfKind(kind string) []interface{} {
 		if err != nil {
 			panic(err)
 		}
+	} else if kind == "StorageClass" {
+		a, err := d.StorageClassLister.List(labels.Everything())
+		for _, res := range a {
+			r = append(r, res)
+		}
+		if err != nil {
+			panic(err)
+		}
+	} else if kind == "CSIDriver" {
+		a, err := d.CSIDriverLister.List(labels.Everything())
+		for _, res := range a {
+			r = append(r, res)
+		}
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		panic("unknown kind")
 	}
 	return r
 }
@@ -80,7 +98,7 @@ func (m *ExpMatcher) relationsMatch(target interface{}, r *Rule, idx int, chosen
 			if err != nil {
 				panic(err)
 			}
-			if !match {
+			if cond.Exists && !match || !cond.Exists && match {
 				return false
 			}
 		}
@@ -115,6 +133,7 @@ func (m *ExpMatcher) tryMatch(r *Rule, idx int, chosen *[]interface{}) bool {
 				found := m.tryMatch(r, idx+1, chosen)
 				if found {
 					success = true
+					break
 				}
 			}
 		}
