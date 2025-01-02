@@ -147,9 +147,12 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	matcher := analyze.NewMatcher(dataSource)
 	res, err := matcher.MatchRule(&analyze.CsiDriverMissing)
 	if res != nil {
+		klog.Info("Errors found:")
 		for _, r := range res.Resources {
 			fmt.Printf("[%T] %s\n", r, reflect.ValueOf(r).Elem().FieldByName("Name").String())
 		}
+	} else {
+		klog.Info("No errors")
 	}
 	fmt.Printf("err: %v\n", err)
 

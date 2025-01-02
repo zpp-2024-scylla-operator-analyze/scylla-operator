@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/fields"
 	"reflect"
@@ -29,27 +30,58 @@ type Rule struct {
 	Relations   []resourceConnection
 }
 
-func getFieldValue(path string, obj interface{}) reflect.Value {
+func getFieldValueIterator(node reflect.Value, fields []string) func() *reflect.Value {
+	switch node.Kind() {
+	case reflect.Ptr:
+		return getFieldValueIterator(node.Elem(), fields)
+	}
+
+	if len(fields) == 0 {
+		called := false
+		return func() *reflect.Value {
+			if !called {
+				called = true
+				return &node
+			}
+			return nil
+		}
+	}
+
+	switch node.Kind() {
+	case reflect.Map:
+		return getFieldValueIterator(node.MapIndex(reflect.ValueOf(fields[0])), fields[1:])
+	case reflect.Struct:
+		return getFieldValueIterator(node.FieldByName(fields[0]), fields[1:])
+	case reflect.Slice | reflect.Array:
+		i := -1
+		iter := func() *reflect.Value { return nil }
+		return func() *reflect.Value {
+			val := iter()
+			for val == nil && i+1 < node.Len() {
+				i++
+				iter = getFieldValueIterator(node.Index(i), fields)
+				val = iter()
+			}
+			return val
+		}
+	default:
+		panic(errors.New(fmt.Sprintf("unknown field type %s for %v", node.Type().String(), node)))
+	}
+	return nil
+}
+
+func GetFieldValueIterator(path string, obj interface{}) func() *reflect.Value {
+	path = strings.Map(func(ch rune) rune {
+		if ch == ' ' {
+			return -1
+		}
+		return ch
+	}, path)
 	fieldNames := strings.Split(path, ".")
 	if fieldNames[0] == "Metadata" {
 		fieldNames = fieldNames[1:]
 	}
-	checkpoints := new([]reflect.Value)
-	
-	value := reflect.ValueOf(obj).Elem()
-	for _, f := range fieldNames {
-		switch value.Kind() {
-		case reflect.Map:
-			value = value.MapIndex(reflect.ValueOf(f))
-		case reflect.Struct:
-			value = value.FieldByName(f)
-		case reflect.Slice:
-
-		default:
-			panic(fmt.Sprintf("unknown field type %s", value.Type().String()))
-		}
-	}
-	return value
+	return getFieldValueIterator(reflect.ValueOf(obj), fieldNames)
 }
 
 type FieldRelation struct {
@@ -57,22 +89,32 @@ type FieldRelation struct {
 	RhsPath string
 }
 
-func (f *FieldRelation) EvaluateOn(a interface{}, b interface{}) (bool, error) {
-	lhs := getFieldValue(f.LhsPath, a)
-	rhs := getFieldValue(f.RhsPath, b)
-	return reflect.DeepEqual(lhs, rhs), nil
+func (r *FieldRelation) EvaluateOn(a interface{}, b interface{}) (bool, error) {
+	lhsIter := GetFieldValueIterator(r.LhsPath, a)
+	rhsIter := GetFieldValueIterator(r.RhsPath, b)
+	lhsAll := make([]*reflect.Value, 0)
+	for lhs := lhsIter(); lhs != nil; lhs = lhsIter() {
+		lhsAll = append(lhsAll, lhs)
+	}
+	for rhs := rhsIter(); rhs != nil; rhs = rhsIter() {
+		for _, lhs := range lhsAll {
+			if reflect.DeepEqual(lhs, rhs) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
-type ObjectFields struct {
-	obj interface{}
+type ExistentialRelation struct {
+	Exists bool
 }
 
-func (o *ObjectFields) Has(field string) (exists bool) {
-	return getFieldValue(field, o.obj).IsValid()
-}
-
-func (o *ObjectFields) Get(field string) (value string) {
-	return getFieldValue(field, o.obj).String()
+func (r *ExistentialRelation) EvaluateOn(a interface{}, b interface{}) (bool, error) {
+	if a != b {
+		panic("a and b have to be equal")
+	}
+	return r.Exists && a != nil || !r.Exists && a == nil, nil
 }
 
 var CsiDriverMissing = Rule{
@@ -82,13 +124,18 @@ var CsiDriverMissing = Rule{
 		{
 			Kind: "ScyllaCluster",
 			Condition: fields.AndSelectors(
-				fields.ParseSelectorOrDie("Status.Conditions.Type = 'StatefulSetControllerProgressing'"),
-				fields.ParseSelectorOrDie("Status.Conditions.Type = 'Progressing'")),
+				fields.ParseSelectorOrDie("Status.Conditions.Type=StatefulSetControllerProgressing"),
+				fields.ParseSelectorOrDie("Status.Conditions.Type=Progressing"),
+				fields.ParseSelectorOrDie("Spec.Datacenter.Racks.Storage.StorageClassName=scylladb-local-xfs")),
 		},
 		{
 			Kind:      "Pod",
-			Condition: fields.ParseSelectorOrDie("status.conditions.type==\"PodScheduled\""),
+			Condition: fields.ParseSelectorOrDie("Status.Conditions.Type=PodScheduled"),
 		},
+		//{
+		//	Kind:      "LocalCsiDriver",
+		//	Condition: fields.Everything(),
+		//},
 	},
 	Relations: []resourceConnection{
 		{
@@ -99,5 +146,10 @@ var CsiDriverMissing = Rule{
 				RhsPath: "Metadata.Labels.scylla/cluster",
 			},
 		},
+		//{
+		//	Lhs: 2,
+		//	Rhs: 2,
+		//	Rel: &ExistentialRelation{},
+		//},
 	},
 }
