@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/templates"
 	"os"
+	"reflect"
 )
 
 var (
@@ -102,20 +103,21 @@ func (o *AnalyzeOptions) Validate() error {
 }
 
 func (o *AnalyzeOptions) Complete() error {
-	err := o.ClientConfig.Complete()
-	if err != nil {
-		return err
-	}
+	if len(o.ArchivePath) == 0 {
+		err := o.ClientConfig.Complete()
+		if err != nil {
+			return err
+		}
 
-	o.kubeClient, err = kubernetes.NewForConfig(o.ProtoConfig)
-	if err != nil {
-		return fmt.Errorf("can't build kubernetes clientset: %w", err)
+		o.kubeClient, err = kubernetes.NewForConfig(o.ProtoConfig)
+		if err != nil {
+			return fmt.Errorf("can't build kubernetes clientset: %w", err)
+		}
+		o.scyllaClient, err = scyllaversioned.NewForConfig(o.RestConfig)
+		if err != nil {
+			return fmt.Errorf("can't build scylla clientset: %w", err)
+		}
 	}
-	o.scyllaClient, err = scyllaversioned.NewForConfig(o.RestConfig)
-	if err != nil {
-		return fmt.Errorf("can't build scylla clientset: %w", err)
-	}
-
 	return nil
 }
 
@@ -126,18 +128,30 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var err error
+	var (
+		dataSource *analyze.DataSource
+		err        error
+	)
 	if len(o.ArchivePath) > 0 {
-		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		dataSource, err = analyze.NewDataSourceFromFS(ctx, o.ArchivePath)
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
 	} else {
-		_, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+		dataSource, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
 		if err != nil {
 			return fmt.Errorf("can't build data source from clients: %w", err)
 		}
 	}
+
+	matcher := analyze.NewMatcher(dataSource)
+	res, err := matcher.MatchRule(&analyze.CsiDriverMissing)
+	if res != nil {
+		for _, r := range res.Resources {
+			fmt.Printf("[%T] %s\n", r, reflect.ValueOf(r).Elem().FieldByName("Name").String())
+		}
+	}
+	fmt.Printf("err: %v\n", err)
 
 	return nil
 }

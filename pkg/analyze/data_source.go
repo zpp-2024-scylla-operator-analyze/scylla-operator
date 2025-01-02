@@ -3,6 +3,7 @@ package analyze
 import (
 	"context"
 	"fmt"
+	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +13,8 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
+	"os"
+	"reflect"
 )
 
 type DataSource struct {
@@ -113,4 +116,25 @@ func NewDataSourceFromClients(
 		ServiceAccountLister: serviceAccountLister,
 		ScyllaClusterLister:  scyllaClusterLister,
 	}, nil
+}
+
+func NewDataSourceFromFS(
+	_ context.Context,
+	archivePath string,
+) (*DataSource, error) {
+
+	indexers, err := IndexersFromFS(os.DirFS(archivePath))
+	if err != nil {
+		return nil, fmt.Errorf("can't build listers from archive: %v", err)
+	}
+
+	return &DataSource{
+		PodLister:            corev1listers.NewPodLister(indexers[reflect.TypeOf(&corev1.Pod{})]),
+		ServiceLister:        corev1listers.NewServiceLister(indexers[reflect.TypeOf(&corev1.Service{})]),
+		SecretLister:         corev1listers.NewSecretLister(indexers[reflect.TypeOf(&corev1.Secret{})]),
+		ConfigMapLister:      corev1listers.NewConfigMapLister(indexers[reflect.TypeOf(&corev1.ConfigMap{})]),
+		ServiceAccountLister: corev1listers.NewServiceAccountLister(indexers[reflect.TypeOf(&corev1.ServiceAccount{})]),
+		ScyllaClusterLister:  scyllav1listers.NewScyllaClusterLister(indexers[reflect.TypeOf(&scyllav1.ScyllaCluster{})]),
+	}, nil
+
 }

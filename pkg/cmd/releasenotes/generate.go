@@ -66,7 +66,7 @@ func NewGenGitReleaseNotesCommand(ctx context.Context, streams genericclioptions
 	cmd.Flags().StringVar(&o.RepositoryPath, "repository-path", o.RepositoryPath, "Path to the git repository.")
 	cmd.Flags().StringVar(&o.ContainerImageName, "container-image-name", o.Repository, `Full name of the container image.`)
 	cmd.Flags().StringVar(&o.Repository, "repository", o.Repository, `Name of repository in "owner/name" format.`)
-	cmd.Flags().StringVar(&o.StartRef, "start-ref", o.StartRef, "First commit reference, pull requests merged after this ref (including this ref) will be part of the release notes.")
+	cmd.Flags().StringVar(&o.StartRef, "start-ref", o.StartRef, "Lhs commit reference, pull requests merged after this ref (including this ref) will be part of the release notes.")
 	cmd.Flags().StringVar(&o.EndRef, "end-ref", o.EndRef, "Last commit reference, pull requests merged before (including this ref) this ref will be part of the release notes.")
 	cmd.Flags().StringVar(&o.GithubToken, "github-token", o.GithubToken, "GitHub token used to authenticate requests.")
 
