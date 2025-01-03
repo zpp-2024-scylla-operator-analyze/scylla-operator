@@ -2,12 +2,10 @@ package diagnoses
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
-	"k8s.io/klog/v2"
+	_ "k8s.io/klog/v2"
 )
 
 func Diagnose(ds *sources.DataSource) ([]Diagnosis, error) {
-	klog.Infof("***")
-
 	diagnoses := make([]Diagnosis, 0)
 
 	result, err := noOperator(ds)
@@ -17,7 +15,12 @@ func Diagnose(ds *sources.DataSource) ([]Diagnosis, error) {
 
 	diagnoses = append(diagnoses, result...)
 
-	klog.Infof("***")
+	result, err = storageClassMissing(ds)
+	if err != nil {
+		return nil, err
+	}
+
+	diagnoses = append(diagnoses, result...)
 
 	return diagnoses, nil
 }

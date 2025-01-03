@@ -15,12 +15,13 @@ import (
 )
 
 type DataSource struct {
-	PodLister            corev1listers.PodLister
-	ServiceLister        corev1listers.ServiceLister
-	SecretLister         corev1listers.SecretLister
-	ConfigMapLister      corev1listers.ConfigMapLister
-	ServiceAccountLister corev1listers.ServiceAccountLister
-	ScyllaClusterLister  scyllav1listers.ScyllaClusterLister
+	PodLister                   corev1listers.PodLister
+	ServiceLister               corev1listers.ServiceLister
+	SecretLister                corev1listers.SecretLister
+	ConfigMapLister             corev1listers.ConfigMapLister
+	ServiceAccountLister        corev1listers.ServiceAccountLister
+	PersistentVolumeClaimLister corev1listers.PersistentVolumeClaimLister
+	ScyllaClusterLister         scyllav1listers.ScyllaClusterLister
 }
 
 func BuildListerWithOptions[T any](
@@ -98,6 +99,13 @@ func NewDataSourceFromClients(
 		return nil, fmt.Errorf("can't build service account lister: %w", err)
 	}
 
+	persistentVolumeClaimLister, err := BuildLister(ctx, corev1listers.NewPersistentVolumeClaimLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+		return kubeClient.CoreV1().PersistentVolumeClaims(corev1.NamespaceAll).List(ctx, options)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't build persistent volume claim lister: %w", err)
+	}
+
 	scyllaClusterLister, err := BuildLister(ctx, scyllav1listers.NewScyllaClusterLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return scyllaClient.ScyllaV1().ScyllaClusters(corev1.NamespaceAll).List(ctx, options)
 	})
@@ -106,11 +114,12 @@ func NewDataSourceFromClients(
 	}
 
 	return &DataSource{
-		PodLister:            podLister,
-		ServiceLister:        serviceLister,
-		SecretLister:         secretLister,
-		ConfigMapLister:      configMapLister,
-		ServiceAccountLister: serviceAccountLister,
-		ScyllaClusterLister:  scyllaClusterLister,
+		PodLister:                   podLister,
+		ServiceLister:               serviceLister,
+		SecretLister:                secretLister,
+		ConfigMapLister:             configMapLister,
+		ServiceAccountLister:        serviceAccountLister,
+		PersistentVolumeClaimLister: persistentVolumeClaimLister,
+		ScyllaClusterLister:         scyllaClusterLister,
 	}, nil
 }
