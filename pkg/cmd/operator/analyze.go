@@ -81,8 +81,6 @@ func (o *AnalyzeOptions) AddFlags(cmd *cobra.Command) {
 func (o *AnalyzeOptions) Validate() error {
 	var errs []error
 
-	errs = append(errs, o.ClientConfig.Validate())
-
 	if len(o.ArchivePath) > 0 {
 		_, err := os.Stat(o.ArchivePath)
 		if err != nil {
@@ -92,6 +90,8 @@ func (o *AnalyzeOptions) Validate() error {
 				errs = append(errs, fmt.Errorf("can't stat archive path %q", o.ArchivePath))
 			}
 		}
+	} else {
+		errs = append(errs, o.ClientConfig.Validate())
 	}
 
 	if len(o.Kubeconfig) != 0 && len(o.ArchivePath) != 0 {
@@ -102,6 +102,10 @@ func (o *AnalyzeOptions) Validate() error {
 }
 
 func (o *AnalyzeOptions) Complete() error {
+	if len(o.ArchivePath) != 0 {
+		return nil
+	}
+
 	err := o.ClientConfig.Complete()
 	if err != nil {
 		return err
