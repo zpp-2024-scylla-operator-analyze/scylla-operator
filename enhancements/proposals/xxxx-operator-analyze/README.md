@@ -13,9 +13,7 @@ optimize the troubleshooting process.
 
 ### Goals
 
-List the specific goals of the proposal. How will we know that this has succeeded?
 - Outline the design of `analyze` tool.
-- 
 
 ### Non-Goals
 
@@ -30,16 +28,26 @@ you're proposing, but should not include things like API designs or
 implementation. What is the desired outcome and how do we measure success?.
 The "Design Details" section below is for the real nitty-gritty.
 
-### -User Stories
+### User Stories
 
-Detail the things that people will be able to do if this is implemented.
-Include as much detail as possible so that people can understand the "how" of
-the system. The goal here is to make this feel real for users without getting
-bogged down.
+[//]: # (Detail the things that people will be able to do if this is implemented.)
+[//]: # (Include as much detail as possible so that people can understand the "how" of)
+[//]: # (the system. The goal here is to make this feel real for users without getting)
+[//]: # (bogged down.)
 
-#### -Story 1
+#### Deployment troubleshooting
+As a user, I want to quickly find common problems with ScyllaDB K8s deployments with access to the live cluster.  
+As a user, I want to quickly find common problems with ScyllaDB K8s deployments without access to the live cluster,
+using only must-gathers.
 
-#### -Story 2
+#### Supported error inspection?
+As a user, I want to list supported errors. And search for potential errors by symptom??
+
+#### Extensibility
+As a maintainer, I want to add new problems and new symptoms of existing problems.
+
+#### -Story 3
+???
 
 ### -Notes/Constraints/Caveats [Optional]
 
@@ -48,10 +56,7 @@ What are some important details that didn't come across above?
 Go in to as much detail as necessary here.
 This might be a good place to talk about core concepts and how they relate.
 
-### -Risks and Mitigations
-
-What are the risks of this proposal, and how do we mitigate? Think broadly.
-For example, consider both security and how this will impact the ecosystem.
+### Risks and Mitigations
 
 ## -Design Details
 
@@ -77,17 +82,18 @@ No specific action for upgrades / downgrades is needed.
 
 ### Version Skew Strategy
 
-The tool is mostly self-isolated, there should be no tricky interactions.
+The tool is mostly self-isolated.
 
 ## -Implementation History
 
-Major milestones in the life cycle of a proposal should be tracked in `Implementation
-History`.
+[//]: # (- 2024-01-15: Initial enhancement proposal)
+[//]: # (- ???: Enhancement proposal merged)
+[//]: # (- 2024-01-30: Initial enhancement implementation)
 
 ## Drawbacks
 
-Due to the dynamic nature of software involved, the rules might need to be updated frequently,
-increasing maintenance efforts to keep a satisfactory diagnosis accuracy.
+Due to the dynamic nature of ScyllaDB, the rules might need to be updated frequently, increasing
+maintenance efforts to keep a satisfactory diagnosis accuracy.
     
 ## -Alternatives
 
