@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze"
+	"github.com/scylladb/scylla-operator/pkg/analyze/front"
+	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
 	"github.com/scylladb/scylla-operator/pkg/version"
@@ -130,17 +132,28 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var ds *sources.DataSource
 	var err error
 	if len(o.ArchivePath) > 0 {
-		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		ds, err = &sources.DataSource{}, errors.New("must-gather archives are currently unsupported")
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
 	} else {
-		_, err = analyze.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
+		ds, err = sources.NewDataSourceFromClients(ctx, o.kubeClient, o.scyllaClient)
 		if err != nil {
 			return fmt.Errorf("can't build data source from clients: %w", err)
 		}
+	}
+
+	diagnoses, err := analyze.Analyze(ds)
+	if err != nil {
+		return err
+	}
+
+	err = front.Print(diagnoses)
+	if err != nil {
+		return err
 	}
 
 	return nil
