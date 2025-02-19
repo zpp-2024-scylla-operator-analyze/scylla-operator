@@ -1,3 +1,7 @@
 package symptoms
 
-var Symptoms = Reexport("", []map[string]Symptom{alfa, bravo})
+func BuildSymptoms() []*Symptom {
+	symptoms := make([]*Symptom, 0)
+	symptoms = append(symptoms, CsiDriverSymptoms...)
+	return symptoms
+}

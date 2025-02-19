@@ -2,31 +2,29 @@ package analyze
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
-	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"k8s.io/klog/v2"
 )
 
 func Analyze(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	for key, val := range symptoms.Symptoms {
-		klog.Infof("%s %v", key, val)
+	smp := symptoms.BuildSymptoms()
+	klog.Info("Available symptoms:")
+	for _, val := range smp {
+		klog.Infof("%s %v", (*val).Name(), val)
 	}
 
-	query := selectors.New().
-		Select("cluster", "ScyllaCluster").
-		Select("pod", "Pod").
-		Where("pod", "pod.app = scylla").
-		Join("cluster", "pod", "cluster.deployed = pod.app").
-		Any()
-	// TODO: Maybe should panic if error while constructing a query?
-
-	result, err := query(ds)
-	if err != nil {
-		return nil, err
+	issues := make([]front.Diagnosis, 0)
+	for _, s := range smp {
+		result := (*s).Match(ds)
+		err := front.Print(result)
+		if err != nil {
+			return nil, err
+		}
+		if result != nil && len(result) > 0 {
+			klog.Info(result)
+			issues = append(issues, result...)
+		}
 	}
-
-	klog.Info(result)
-
-	return []front.Diagnosis{}, nil
+	return issues, nil
 }
