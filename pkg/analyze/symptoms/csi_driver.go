@@ -7,16 +7,11 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 )
 
-//import (
-//	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
-//	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-//)
-
-var CsiDriverSymptoms = NewSymptomSet("csi-driver", []*SymptomSet{
+var CsiDriverSymptoms = NewSymptomSet("csi-driver", []*OrSymptom{
 	buildLocalCsiDriverMissingSymptoms(),
 })
 
-func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
+func buildLocalCsiDriverMissingSymptoms() *OrSymptom {
 	nodriverbasic := NewSymptom("abc", "diaguwu", "sug",
 		selectors.
 			Select("scylla-cluster", selectors.Type[scyllav1.ScyllaCluster]()).
@@ -41,12 +36,20 @@ func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
 				}
 				return storageClassXfs && conditionProgressing && conditionControllerProgressing
 			}).
-			Relate("scylla-cluster", "scylla-pod", "").
-			Relate("scylla-cluster", "storage-class", "").
-			Relate("storage-class", "csi-driver", "").
-			Collect(
-				[]string{"scylla-cluster", "cluster-storage-class"},
-				func(cluster *scyllav1.ScyllaCluster, sc *storagev1.StorageClass) bool { return true }))
+			Relate("scylla-cluster", "scylla-pod", func(c *scyllav1.ScyllaCluster, p *v1.Pod) bool {
+				return c.Name == p.Labels["scylla/cluster"]
+			}).
+			Relate("scylla-cluster", "storage-class", func(c *scyllav1.ScyllaCluster, sc *storagev1.StorageClass) bool {
+				for _, rack := range c.Spec.Datacenter.Racks {
+					if *rack.Storage.StorageClassName == sc.Name {
+						return true
+					}
+				}
+				return false
+			}).
+			Relate("storage-class", "csi-driver", func(sc *storagev1.StorageClass, d *storagev1.CSIDriver) bool {
+				return sc.Provisioner == d.Name
+			}))
 
 	csiDriverSymptomSet := NewEmptySymptomSet("local-csi-driver-missing")
 	csiDriverSymptomSet.Add(&nodriverbasic)

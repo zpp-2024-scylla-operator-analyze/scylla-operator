@@ -3,23 +3,17 @@ package symptoms
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-	"k8s.io/klog/v2"
 )
 
-var DummySymptoms = NewSymptomSet("dummy", []*SymptomSet{
+var DummySymptoms = NewSymptomSet("dummy", []*OrSymptom{
 	buildBasicDummySymptoms(),
 })
 
-func buildBasicDummySymptoms() *SymptomSet {
-	basicSet := NewSymptomSet("basic", []*SymptomSet{})
+func buildBasicDummySymptoms() *OrSymptom {
+	basicSet := NewSymptomSet("basic", []*OrSymptom{})
 
-	emptyCluster := NewSymptom("cluster", "diag", "sug",
-		selectors.
-			Select("cluster", selectors.Type[scyllav1.ScyllaCluster]()).
-			Collect([]string{"cluster"}, func(cluster *scyllav1.ScyllaCluster) bool {
-				klog.Infof("found %v", cluster)
-				return false
-			}))
+	emptyCluster := NewSymptom("cluster", "cluster diagnosis", "cluster suggestion",
+		selectors.Select("cluster", selectors.Type[scyllav1.ScyllaCluster]()))
 	basicSet.Add(&emptyCluster)
 
 	return &basicSet

@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-type builder struct {
+type Selector struct {
 	resources   map[string]reflect.Type
 	constraints map[string][]*constraint
 	relations   []*relation
@@ -19,15 +19,15 @@ func Type[T any]() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
-func Select(label string, typ reflect.Type) *builder {
-	return (&builder{
+func Select(label string, typ reflect.Type) *Selector {
+	return (&Selector{
 		resources:   make(map[string]reflect.Type),
 		constraints: make(map[string][]*constraint),
 		relations:   make([]*relation, 0),
 	}).Select(label, typ)
 }
 
-func (b *builder) Select(label string, typ reflect.Type) *builder {
+func (b *Selector) Select(label string, typ reflect.Type) *Selector {
 	if _, exists := b.resources[label]; exists {
 		panic("TODO: Handle duplicate labels")
 	}
@@ -37,7 +37,7 @@ func (b *builder) Select(label string, typ reflect.Type) *builder {
 	return b
 }
 
-func (b *builder) Filter(label string, f any) *builder {
+func (b *Selector) Filter(label string, f any) *Selector {
 	typ, defined := b.resources[label]
 	if !defined {
 		panic("TODO: Handle undefined labels in Filter")
@@ -53,7 +53,7 @@ func (b *builder) Filter(label string, f any) *builder {
 	return b
 }
 
-func (b *builder) Relate(lhs, rhs string, f any) *builder {
+func (b *Selector) Relate(lhs, rhs string, f any) *Selector {
 	// TODO: Check input
 
 	relation := newRelation(lhs, rhs, f)
@@ -119,11 +119,25 @@ func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
 	return result
 }
 
-func (b *builder) Collect(labels []string, function any) func(*sources.DataSource) {
+func (b *Selector) Collect(labels []string, function any) func(*sources.DataSource) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
 		}
+	}
+
+	callback := newFunction[bool](labels, function)
+	executor := newExecutor(b.resources, b.constraints, b.relations)
+
+	return func(ds *sources.DataSource) {
+		executor.execute(fromDataSource(ds), callback)
+	}
+}
+
+func (b *Selector) CollectAll(function any) func(*sources.DataSource) {
+	labels := make([]string, 0)
+	for label := range b.resources {
+		labels = append(labels, label)
 	}
 
 	callback := newFunction[bool](labels, function)

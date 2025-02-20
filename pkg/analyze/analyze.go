@@ -11,18 +11,16 @@ import (
 )
 
 func Analyze(ctx context.Context, ds *sources.DataSource) ([]front.Diagnosis, error) {
-	klog.Info("Available symptoms:")
-
 	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
 	symptoms.MatchAll(&symptoms.Symptoms, matchWorkerPool, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
-		klog.Info("Callback for ", s)
+		klog.Infof("Callback for %v", s)
 		if err != nil {
 			klog.Warningf("symptom %v, error: %v", s, err)
 			return
 		}
 		err = front.Print(diagnoses)
 		if err != nil {
-			klog.Warningf("can't print diagnoses for symptom %v, diagnoses: %v, error: %v", s, diagnoses, err)
+			klog.Warningf("can't print diagnoses for symptom %v, error: %v, diagnoses: %v", s, err, diagnoses)
 		}
 	})
 	return nil, nil

@@ -1,5 +1,11 @@
 package front
 
 type Diagnosis struct {
-	// TODO
+	resources map[string]any
+}
+
+func NewDiagnosis(r map[string]any) Diagnosis {
+	return Diagnosis{
+		resources: r,
+	}
 }

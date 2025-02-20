@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
+	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"k8s.io/klog/v2"
 )
@@ -19,10 +20,10 @@ type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    func(*sources.DataSource)
+	selector    *selectors.Selector
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(*sources.DataSource)) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector *selectors.Selector) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
@@ -44,93 +45,97 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	s.selector(ds)
-	//if match {
-	//	// TODO: construct diagnosis
-	//	return make([]front.Diagnosis, 0), nil
-	//}
-	return nil, nil
-}
+	var res map[string]any = nil
+	s.selector.CollectAll(func(resources map[string]any) bool {
+		res = resources
+		return false
+	})(ds)
 
-type MultiSymptom interface {
-	Symptom
-	SubSymptoms() []*Symptom
-}
-
-type multiSymptom struct {
-	name     string
-	symptoms []*Symptom
-	selector func(*sources.DataSource) (bool, error)
-}
-
-func NewMultiSymptom(name string, symptoms []*Symptom, glueSelector string) MultiSymptom {
-	return &multiSymptom{
-		name:     name,
-		symptoms: symptoms,
-		selector: func(_ *sources.DataSource) (bool, error) { panic("not implemented :(") },
-	}
-}
-
-func (m *multiSymptom) Name() string {
-	return m.name
-}
-
-func (m *multiSymptom) Diagnoses() []string {
-	diagnoses := make([]string, 0)
-	for _, sym := range m.symptoms {
-		diagnoses = append(diagnoses, (*sym).Diagnoses()...)
-	}
-	return diagnoses
-}
-
-func (m *multiSymptom) Suggestions() []string {
-	suggestions := make([]string, 0)
-	for _, sym := range m.symptoms {
-		suggestions = append(suggestions, (*sym).Suggestions()...)
-	}
-	return suggestions
-}
-
-func (m *multiSymptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	match, err := m.selector(ds)
-	if err != nil {
-		return nil, err
-	}
-	if match {
-		// TODO: construct diagnosis
-		return make([]front.Diagnosis, 0), nil
+	if res != nil {
+		return []front.Diagnosis{front.NewDiagnosis(res)}, nil
 	}
 	return nil, nil
 }
 
-func (m *multiSymptom) SubSymptoms() []*Symptom {
-	return m.symptoms
-}
+//type AndSymptom interface {
+//	Symptom
+//	SubSymptoms() []*Symptom
+//}
+//
+//type multiSymptom struct {
+//	name     string
+//	symptoms []*Symptom
+//	selector func(*sources.DataSource) (bool, error)
+//}
+//
+//func NewMultiSymptom(name string, symptoms []*Symptom) AndSymptom {
+//	return &multiSymptom{
+//		name:     name,
+//		symptoms: symptoms,
+//		selector: func(_ *sources.DataSource) (bool, error) { panic("not implemented :(") },
+//	}
+//}
+//
+//func (m *multiSymptom) Name() string {
+//	return m.name
+//}
+//
+//func (m *multiSymptom) Diagnoses() []string {
+//	diagnoses := make([]string, 0)
+//	for _, sym := range m.symptoms {
+//		diagnoses = append(diagnoses, (*sym).Diagnoses()...)
+//	}
+//	return diagnoses
+//}
+//
+//func (m *multiSymptom) Suggestions() []string {
+//	suggestions := make([]string, 0)
+//	for _, sym := range m.symptoms {
+//		suggestions = append(suggestions, (*sym).Suggestions()...)
+//	}
+//	return suggestions
+//}
+//
+//func (m *multiSymptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
+//	match, err := m.selector(ds)
+//	if err != nil {
+//		return nil, err
+//	}
+//	if match {
+//		// TODO: construct diagnosis
+//		return make([]front.Diagnosis, 0), nil
+//	}
+//	return nil, nil
+//}
+//
+//func (m *multiSymptom) SubSymptoms() []*Symptom {
+//	return m.symptoms
+//}
 
-type SymptomSet interface {
+type OrSymptom interface {
 	Name() string
 	Symptoms() map[string]*Symptom
-	DerivedSets() map[string]*SymptomSet
+	DerivedSets() map[string]*OrSymptom
 
 	Add(*Symptom) error
-	AddChild(*SymptomSet) error
+	AddChild(*OrSymptom) error
 }
 
 type symptomSet struct {
 	name     string
 	symptoms map[string]*Symptom
-	children map[string]*SymptomSet
+	children map[string]*OrSymptom
 }
 
-func NewEmptySymptomSet(name string) SymptomSet {
+func NewEmptySymptomSet(name string) OrSymptom {
 	return &symptomSet{
 		name:     name,
 		symptoms: make(map[string]*Symptom),
-		children: make(map[string]*SymptomSet),
+		children: make(map[string]*OrSymptom),
 	}
 }
 
-func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
+func NewSymptomSet(name string, children []*OrSymptom) OrSymptom {
 	ss := NewEmptySymptomSet(name)
 	for _, subset := range children {
 		err := ss.AddChild(subset)
@@ -150,7 +155,7 @@ func (s *symptomSet) Symptoms() map[string]*Symptom {
 	return s.symptoms
 }
 
-func (s *symptomSet) DerivedSets() map[string]*SymptomSet {
+func (s *symptomSet) DerivedSets() map[string]*OrSymptom {
 	return s.children
 }
 
@@ -163,7 +168,7 @@ func (s *symptomSet) Add(ss *Symptom) error {
 	return nil
 }
 
-func (s *symptomSet) AddChild(ss *SymptomSet) error {
+func (s *symptomSet) AddChild(ss *OrSymptom) error {
 	_, isIn := s.children[(*ss).Name()]
 	if isIn {
 		return errors.New(fmt.Sprintf("symptom already exists: %v", ss))
