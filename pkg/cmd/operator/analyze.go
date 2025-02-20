@@ -146,7 +146,7 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 		}
 	}
 
-	diagnoses, err := analyze.Analyze(ds)
+	diagnoses, err := analyze.Analyze(ctx, ds)
 	if err != nil {
 		return err
 	}
