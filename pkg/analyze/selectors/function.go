@@ -4,12 +4,12 @@ import (
 	"reflect"
 )
 
-type function[R any] struct {
+type function struct {
 	labels []string
 	value  reflect.Value
 }
 
-func newFunction[R any](labels []string, lambda any) *function[R] {
+func newFunction(labels []string, lambda any) *function {
 	typ := reflect.TypeOf(lambda)
 
 	if typ.Kind() != reflect.Func {
@@ -20,13 +20,9 @@ func newFunction[R any](labels []string, lambda any) *function[R] {
 		return nil
 	}
 
-	if typ.NumOut() != 1 {
-		return nil
-	}
-
 	// TODO: Assert that function is ok
 
-	result := &function[R]{
+	result := &function{
 		labels: labels,
 		value:  reflect.ValueOf(lambda),
 	}
@@ -39,7 +35,7 @@ func newFunction[R any](labels []string, lambda any) *function[R] {
 	return result
 }
 
-func (f *function[R]) Labels() map[string]reflect.Type {
+func (f *function) Labels() map[string]reflect.Type {
 	result := make(map[string]reflect.Type, len(f.labels))
 
 	typ := f.value.Type()
@@ -50,7 +46,7 @@ func (f *function[R]) Labels() map[string]reflect.Type {
 	return result
 }
 
-func (f *function[R]) Call(args map[string]any) R {
+func (f *function) Call(args map[string]any) {
 	in := make([]reflect.Value, 0, len(f.labels))
 
 	for _, label := range f.labels {
@@ -62,7 +58,5 @@ func (f *function[R]) Call(args map[string]any) R {
 		in = append(in, reflect.ValueOf(arg))
 	}
 
-	result := f.value.Call(in)
-
-	return result[0].Interface().(R)
+	f.value.Call(in)
 }

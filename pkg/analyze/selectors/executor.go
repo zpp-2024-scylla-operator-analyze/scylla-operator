@@ -7,42 +7,19 @@ import (
 
 type executor struct {
 	resource    map[string]reflect.Type
-	constraints map[string][]*constraint
-	relations   []*relation
+	constraints map[string][]constraint
 }
 
 func newExecutor(
 	resource map[string]reflect.Type,
-	constraints map[string][]*constraint,
-	relations []*relation,
+	constraints map[string][]constraint,
 ) *executor {
-	return &executor{
-		resource:    resource,
-		constraints: constraints,
-		relations:   relations,
-	}
-}
-
-func filter(resources []any, label string, constraints []*constraint) []any {
-	result := make([]any, 0, len(resources))
-
-resourceLoop:
-	for _, resource := range resources {
-		for _, constraint := range constraints {
-			if !constraint.Check(label, resource) {
-				continue resourceLoop
-			}
-		}
-
-		result = append(result, resource)
-	}
-
-	return result
+	return &executor{resource: resource, constraints: constraints}
 }
 
 func (e *executor) execute(
 	resources map[reflect.Type][]any,
-	callback *function[bool],
+	callback *function,
 ) {
 	// TODO: Assert callback is ok
 
@@ -51,9 +28,11 @@ func (e *executor) execute(
 	for label, resource := range e.resource {
 		ordered = append(ordered, labeled[[]any]{
 			Label: label,
-			Value: filter(resources[resource], label, e.constraints[label]),
+			Value: resources[resource],
 		})
 	}
+
+	// TODO: Filter
 
 	slices.SortFunc(ordered, func(a, b labeled[[]any]) int {
 		if len(a.Value) < len(b.Value) {
@@ -67,64 +46,32 @@ func (e *executor) execute(
 		return 0
 	})
 
-	position := make(map[string]int)
-	for idx, resources := range ordered {
-		position[resources.Label] = idx
-	}
-
-	relations := make([]map[int][]*relation, len(ordered))
-	for i, _ := range relations {
-		relations[i] = make(map[int][]*relation)
-	}
-
-	for _, relation := range e.relations {
-		firstLabel, secondLabel := relation.Labels()
-
-		first := position[firstLabel]
-		second := position[secondLabel]
-
-		if first > second {
-			first, second = second, first
-		}
-
-		relations[second][first] = append(relations[second][first], relation)
-	}
-
 	tuple := make([]labeled[any], 0, len(ordered))
-	e.traverse(ordered, relations, callback, tuple)
+	e.traverse(ordered, callback, tuple)
 }
 
 func (e *executor) traverse(
 	resources []labeled[[]any],
-	relations []map[int][]*relation,
-	callback *function[bool],
+	callback *function,
 	tuple []labeled[any],
 ) {
-
 	if len(tuple) >= cap(tuple) {
 		e.process(callback, tuple)
 		return
 	}
 
 	label := resources[len(tuple)].Label
-outer:
 	for _, resource := range resources[len(tuple)].Value {
-		labeled := labeled[any]{Label: label, Value: resource}
+		// TODO: Check relations
 
-		for other, relations := range relations[len(tuple)] {
-			for _, relation := range relations {
-				if !relation.Check(tuple[other], labeled) {
-					continue outer
-				}
-				//fmt.Println(relation.Check(tuple[other], labeled))
-			}
-		}
-
-		e.traverse(resources, relations, callback, append(tuple, labeled))
+		e.traverse(resources, callback, append(tuple, labeled[any]{
+			Label: label,
+			Value: resource,
+		}))
 	}
 }
 
-func (e *executor) process(callback *function[bool], tuple []labeled[any]) {
+func (e *executor) process(callback *function, tuple []labeled[any]) {
 	labels := callback.Labels()
 	args := make(map[string]any, len(labels))
 
