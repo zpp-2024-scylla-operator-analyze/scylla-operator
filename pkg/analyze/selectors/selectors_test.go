@@ -2,32 +2,131 @@ package selectors
 
 import (
 	"fmt"
+	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
+	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	corev1listers "k8s.io/client-go/listers/core/v1"
+	"strings"
 )
 
+type mockScyllaClusterLister struct {
+	clusters []*scyllav1.ScyllaCluster
+}
+
+func (l mockScyllaClusterLister) List(_ labels.Selector) ([]*scyllav1.ScyllaCluster, error) {
+	return l.clusters, nil
+}
+
+func (l mockScyllaClusterLister) ScyllaClusters(_ string) scyllav1listers.ScyllaClusterNamespaceLister {
+	panic("")
+}
+
+type mockPodLister struct {
+	pods []*v1.Pod
+}
+
+func (l mockPodLister) List(_ labels.Selector) ([]*v1.Pod, error) {
+	return l.pods, nil
+}
+
+func (l mockPodLister) Pods(_ string) corev1listers.PodNamespaceLister {
+	panic("")
+}
+
 func ExampleCollect() {
+	ds := &sources.DataSource{
+		PodLister: mockPodLister{
+			pods: []*v1.Pod{
+				&v1.Pod{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "scylla-operator-1",
+					},
+					Spec: v1.PodSpec{
+						NodeName: "europe-central2",
+					},
+					Status: v1.PodStatus{},
+				},
+				&v1.Pod{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "scylla-operator-2",
+					},
+					Spec: v1.PodSpec{
+						NodeName: "europe-central2",
+					},
+					Status: v1.PodStatus{},
+				},
+				&v1.Pod{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "scylla-operator-3",
+					},
+					Spec: v1.PodSpec{
+						NodeName: "us-east1",
+					},
+					Status: v1.PodStatus{},
+				},
+				&v1.Pod{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "dns",
+					},
+					Spec: v1.PodSpec{
+						NodeName: "us-east1",
+					},
+					Status: v1.PodStatus{},
+				},
+			},
+		},
+		ServiceLister:        nil,
+		SecretLister:         nil,
+		ConfigMapLister:      nil,
+		ServiceAccountLister: nil,
+		ScyllaClusterLister: mockScyllaClusterLister{
+			clusters: []*scyllav1.ScyllaCluster{
+				&scyllav1.ScyllaCluster{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "europe-central2",
+					},
+					Spec:   scyllav1.ScyllaClusterSpec{},
+					Status: scyllav1.ScyllaClusterStatus{},
+				},
+				&scyllav1.ScyllaCluster{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "us-east1",
+					},
+					Spec:   scyllav1.ScyllaClusterSpec{},
+					Status: scyllav1.ScyllaClusterStatus{},
+				},
+			},
+		},
+	}
+
 	s := Select("cluster", Type[scyllav1.ScyllaCluster]()).
 		Select("pod", Type[v1.Pod]()).
-		Filter("pod", func(_ v1.Pod) (bool, error) {
-			return true, nil
+		Filter("pod", func(pod *v1.Pod) bool {
+			return strings.HasPrefix(pod.Name, "scylla-operator-")
 		}).
-		Relate("cluster", "pod", func(_ scyllav1.ScyllaCluster, _ v1.Pod) (bool, error) {
-			return true, nil
+		Relate("cluster", "pod", func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
+			return cluster.Name == pod.Spec.NodeName
 		}).
 		Collect(
 			[]string{"cluster", "pod"},
-			func(cluster scyllav1.ScyllaCluster, pod v1.Pod) {
+			func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
 				fmt.Printf("\"%s\" \"%s\"\n", cluster.Name, pod.Name)
+				return true
 			},
 		)
 
-	s(nil)
+	s(ds)
 
 	// Output: "europe-central2" "scylla-operator-1"
 	// "europe-central2" "scylla-operator-2"
-	// "europe-central2" "scylla-operator-3"
-	// "us-east1" "scylla-operator-1"
-	// "us-east1" "scylla-operator-2"
 	// "us-east1" "scylla-operator-3"
 }

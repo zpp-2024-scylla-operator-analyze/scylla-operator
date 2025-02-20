@@ -2,68 +2,16 @@ package selectors
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"reflect"
 )
 
-// Mock's dependencies
-import (
-	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-func mockDataSourceProcessing(_ *sources.DataSource) map[reflect.Type][]any {
-	return map[reflect.Type][]any{
-		reflect.TypeFor[scyllav1.ScyllaCluster](): []any{
-			scyllav1.ScyllaCluster{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "europe-central2",
-				},
-				Spec:   scyllav1.ScyllaClusterSpec{},
-				Status: scyllav1.ScyllaClusterStatus{},
-			},
-			scyllav1.ScyllaCluster{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "us-east1",
-				},
-				Spec:   scyllav1.ScyllaClusterSpec{},
-				Status: scyllav1.ScyllaClusterStatus{},
-			},
-		},
-		reflect.TypeFor[v1.Pod](): []any{
-			v1.Pod{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "scylla-operator-1",
-				},
-				Spec:   v1.PodSpec{},
-				Status: v1.PodStatus{},
-			},
-			v1.Pod{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "scylla-operator-2",
-				},
-				Spec:   v1.PodSpec{},
-				Status: v1.PodStatus{},
-			},
-			v1.Pod{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "scylla-operator-3",
-				},
-				Spec:   v1.PodSpec{},
-				Status: v1.PodStatus{},
-			},
-		},
-	}
-}
-
 type builder struct {
 	resources   map[string]reflect.Type
-	constraints map[string][]constraint
+	constraints map[string][]*constraint
+	relations   []*relation
 }
 
 func Type[T any]() reflect.Type {
@@ -72,7 +20,9 @@ func Type[T any]() reflect.Type {
 
 func Select(label string, typ reflect.Type) *builder {
 	return (&builder{
-		resources: make(map[string]reflect.Type),
+		resources:   make(map[string]reflect.Type),
+		constraints: make(map[string][]*constraint),
+		relations:   make([]*relation, 0),
 	}).Select(label, typ)
 }
 
@@ -87,13 +37,49 @@ func (b *builder) Select(label string, typ reflect.Type) *builder {
 }
 
 func (b *builder) Filter(label string, f any) *builder {
-	// TODO: Implement
+	typ, defined := b.resources[label]
+	if !defined {
+		panic("TODO: Handle undefined labels in Filter")
+	}
+
+	constraint := newConstraint(label, f)
+	if constraint.Labels()[label] != reflect.PointerTo(typ) {
+		panic("TODO: Handle mismatched type in Filter")
+	}
+
+	b.constraints[label] = append(b.constraints[label], constraint)
+
 	return b
 }
 
 func (b *builder) Relate(lhs, rhs string, f any) *builder {
-	// TODO: Implement
+	// TODO: Check input
+
+	relation := newRelation(lhs, rhs, f)
+
+	b.relations = append(b.relations, relation)
+
 	return b
+}
+
+func eraseSliceType[T any](slice []T) []any {
+	result := make([]any, len(slice))
+
+	for i, _ := range slice {
+		result[i] = slice[i]
+	}
+
+	return result
+}
+
+func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
+	clusters, _ := ds.ScyllaClusterLister.List(labels.Everything())
+	pods, _ := ds.PodLister.List(labels.Everything())
+
+	return map[reflect.Type][]any{
+		reflect.TypeFor[scyllav1.ScyllaCluster](): eraseSliceType(clusters),
+		reflect.TypeFor[v1.Pod]():                 eraseSliceType(pods),
+	}
 }
 
 func (b *builder) Collect(labels []string, function any) func(*sources.DataSource) {
@@ -103,10 +89,10 @@ func (b *builder) Collect(labels []string, function any) func(*sources.DataSourc
 		}
 	}
 
-	callback := newFunction(labels, function)
-	executor := newExecutor(b.resources, b.constraints)
+	callback := newFunction[bool](labels, function)
+	executor := newExecutor(b.resources, b.constraints, b.relations)
 
 	return func(ds *sources.DataSource) {
-		executor.execute(mockDataSourceProcessing(ds), callback)
+		executor.execute(fromDataSource(ds), callback)
 	}
 }
