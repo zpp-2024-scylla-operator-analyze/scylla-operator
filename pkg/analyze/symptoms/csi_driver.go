@@ -2,7 +2,6 @@ package symptoms
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
-	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -18,7 +17,7 @@ var CsiDriverSymptoms = NewSymptomSet("csi-driver", []*SymptomSet{
 })
 
 func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
-	nodriverbasic := NewSymptom("abc", "diaguwu", "sug", func(source *sources.DataSource) (bool, error) {
+	nodriverbasic := NewSymptom("abc", "diaguwu", "sug",
 		selectors.
 			Select("scylla-cluster", selectors.Type[*scyllav1.ScyllaCluster]()).
 			Select("scylla-pod", selectors.Type[*v1.Pod]()).
@@ -45,9 +44,9 @@ func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
 			Relate("scylla-cluster", "scylla-pod", "").
 			Relate("scylla-cluster", "storage-class", "").
 			Relate("storage-class", "csi-driver", "StorageClass").
-			Collect([]string{"scylla-cluster", "storage-class"}, func() {})
-		return true, nil
-	})
+			Collect(
+				[]string{"scylla-cluster", "storage-class"},
+				func(cluster *scyllav1.ScyllaCluster, sc *storagev1.StorageClass) bool { return true }))
 
 	csiDriverSymptomSet := NewEmptySymptomSet("local-csi-driver-missing")
 	csiDriverSymptomSet.Add(&nodriverbasic)

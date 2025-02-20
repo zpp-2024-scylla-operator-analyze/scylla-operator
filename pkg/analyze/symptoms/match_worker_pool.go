@@ -32,17 +32,19 @@ func NewMatchWorkerPool(ctx context.Context, ds *sources.DataSource, matchThrott
 }
 
 func (w *MatchWorkerPool) Enqueue(job Job) {
-	go func() {
-		// Throttling
-		w.jobs <- job
-		select {
-		case <-w.workerContext.Done():
-			return
-		case job = <-w.jobs:
-			diag, err := (*job.Symptom).Match(w.ds)
-			job.Callback(diag, err)
-		}
-	}()
+	diag, err := (*job.Symptom).Match(w.ds)
+	job.Callback(diag, err)
+	//go func() {
+	//	// Throttling
+	//	w.jobs <- job
+	//	select {
+	//	case <-w.workerContext.Done():
+	//		return
+	//	case job = <-w.jobs:
+	//		diag, err := (*job.Symptom).Match(w.ds)
+	//		job.Callback(diag, err)
+	//	}
+	//}()
 }
 
 func (w *MatchWorkerPool) Finish() {

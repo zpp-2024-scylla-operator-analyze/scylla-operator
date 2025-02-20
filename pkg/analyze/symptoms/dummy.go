@@ -1,37 +1,26 @@
 package symptoms
 
+import (
+	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
+	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
+	"k8s.io/klog/v2"
+)
+
 var DummySymptoms = NewSymptomSet("dummy", []*SymptomSet{
-	buildDummySymptoms(),
+	buildBasicDummySymptoms(),
 })
 
-func buildDummySymptoms() *SymptomSet {
-	//query := selectors.
-	//	Select(selectors.Resource[scyllav1.ScyllaCluster]("cluster")).
-	//	Select(selectors.Resource[v1.Pod]("pod")).
-	//	Filter("pod", func(_ *v1.Pod) (bool, error) {
-	//		return false, nil
-	//	}).
-	//	Relate("cluster", "pod", func(_ *scyllav1.ScyllaCluster, _ *v1.Pod) (bool, error) {
-	//		return false, nil
-	//	}).
-	//	Collect([]string{"a"}, func(_ string, _ *v1.Pod) {})
-	//
-	//query := selectors.Builder().
-	//	New("cluster", selectors.Type[scyllav1.ScyllaCluster]()).
-	//	New("pod", selectors.Type[v1.Pod]()).
-	//	Join(&selectors.FuncRelation[*scyllav1.ScyllaCluster, *v1.Pod]{
-	//		Lhs: "cluster",
-	//		Rhs: "pod",
-	//		Lambda: func(_ *scyllav1.ScyllaCluster, _ *v1.Pod) (bool, error) {
-	//			return false, nil
-	//		},
-	//	}).
-	//	Where(&selectors.FuncConstraint[*v1.Pod]{
-	//		Resource: "pod",
-	//		Lambda: func(_ *v1.Pod) (bool, error) {
-	//			return false, nil
-	//		},
-	//	}).
-	//	Any()
-	return nil
+func buildBasicDummySymptoms() *SymptomSet {
+	basicSet := NewSymptomSet("basic", []*SymptomSet{})
+
+	emptyCluster := NewSymptom("cluster", "diag", "sug",
+		selectors.
+			Select("cluster", selectors.Type[scyllav1.ScyllaCluster]()).
+			Collect([]string{"cluster"}, func(cluster *scyllav1.ScyllaCluster) bool {
+				klog.Infof("found %v", cluster)
+				return false
+			}))
+	basicSet.Add(&emptyCluster)
+
+	return &basicSet
 }

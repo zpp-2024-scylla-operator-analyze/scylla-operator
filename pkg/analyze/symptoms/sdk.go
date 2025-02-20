@@ -19,10 +19,10 @@ type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    func(*sources.DataSource) (bool, error)
+	selector    func(*sources.DataSource)
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(*sources.DataSource) (bool, error)) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector func(*sources.DataSource)) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
@@ -44,14 +44,11 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	match, err := s.selector(ds)
-	if err != nil {
-		return nil, err
-	}
-	if match {
-		// TODO: construct diagnosis
-		return make([]front.Diagnosis, 0), nil
-	}
+	s.selector(ds)
+	//if match {
+	//	// TODO: construct diagnosis
+	//	return make([]front.Diagnosis, 0), nil
+	//}
 	return nil, nil
 }
 

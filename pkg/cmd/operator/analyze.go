@@ -9,8 +9,10 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
+	scyllaScheme "github.com/scylladb/scylla-operator/pkg/scheme"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -135,7 +137,7 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	var ds *sources.DataSource
 	var err error
 	if len(o.ArchivePath) > 0 {
-		ds, err = &sources.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		ds, err = sources.NewDataSourceFromFS(ctx, o.ArchivePath, serializer.NewCodecFactory(scyllaScheme.Scheme).UniversalDecoder())
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
