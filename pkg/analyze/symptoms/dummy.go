@@ -1,8 +1,8 @@
 package symptoms
 
-var DummySymptoms = []*SymptomSet{
+var DummySymptoms = NewSymptomSet("dummy", []*SymptomSet{
 	buildDummySymptoms(),
-}
+})
 
 func buildDummySymptoms() *SymptomSet {
 	//query := selectors.

@@ -2,8 +2,10 @@ package symptoms
 
 import (
 	"errors"
+	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"k8s.io/klog/v2"
 )
 
 type Symptom interface {
@@ -123,16 +125,24 @@ type symptomSet struct {
 	children map[string]*SymptomSet
 }
 
-func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
-	childrenMap := make(map[string]*SymptomSet)
-	for _, subset := range children {
-		childrenMap[(*subset).Name()] = subset
-	}
+func NewEmptySymptomSet(name string) SymptomSet {
 	return &symptomSet{
 		name:     name,
-		symptoms: make(map[string]*Symptom, 0),
-		children: childrenMap,
+		symptoms: make(map[string]*Symptom),
+		children: make(map[string]*SymptomSet),
 	}
+}
+
+func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
+	ss := NewEmptySymptomSet(name)
+	for _, subset := range children {
+		err := ss.AddChild(subset)
+		if err != nil {
+			klog.Warningf("can't add child symptoms for set %s: %v", name, err)
+			return nil
+		}
+	}
+	return ss
 }
 
 func (s *symptomSet) Name() string {
@@ -159,7 +169,7 @@ func (s *symptomSet) Add(ss *Symptom) error {
 func (s *symptomSet) AddChild(ss *SymptomSet) error {
 	_, isIn := s.children[(*ss).Name()]
 	if isIn {
-		return errors.New("symptom already exists")
+		return errors.New(fmt.Sprintf("symptom already exists: %v", ss))
 	}
 	s.children[(*ss).Name()] = ss
 	return nil

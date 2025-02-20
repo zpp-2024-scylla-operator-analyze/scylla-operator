@@ -2,7 +2,6 @@ package analyze
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
@@ -17,12 +16,8 @@ func Analyze(ctx context.Context, ds *sources.DataSource) ([]front.Diagnosis, er
 		klog.Infof("%s %v", (*val).Name(), val)
 	}
 
-	matchExecutor := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
-	err := matchExecutor.Start()
-	if err != nil {
-		return nil, errors.Errorf("failed to start match worker pool: %v", err)
-	}
-	symptoms.MatchAll(&symptoms.Symptoms, &matchExecutor, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
+	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
+	symptoms.MatchAll(&symptoms.Symptoms, matchWorkerPool, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
 		if err != nil {
 			klog.Warningf("symptom %v, error: %v", s, err)
 			return
