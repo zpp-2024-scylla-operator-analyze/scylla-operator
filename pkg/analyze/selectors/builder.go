@@ -62,7 +62,7 @@ func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	return b
 }
 
-func eraseSliceType[T any](slice []T) []any {
+func eraseSliceType[T any](slice []T, _ error) []any {
 	result := make([]any, len(slice))
 
 	for i, _ := range slice {
@@ -73,13 +73,39 @@ func eraseSliceType[T any](slice []T) []any {
 }
 
 func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
-	clusters, _ := ds.ScyllaClusterLister.List(labels.Everything())
-	pods, _ := ds.PodLister.List(labels.Everything())
+	result := make(map[reflect.Type][]any)
 
-	return map[reflect.Type][]any{
-		reflect.TypeFor[scyllav1.ScyllaCluster](): eraseSliceType(clusters),
-		reflect.TypeFor[v1.Pod]():                 eraseSliceType(pods),
+	if ds.PodLister != nil {
+		result[reflect.TypeFor[v1.Pod]()] =
+			eraseSliceType(ds.PodLister.List(labels.Everything()))
 	}
+
+	if ds.ServiceLister != nil {
+		result[reflect.TypeFor[v1.Service]()] =
+			eraseSliceType(ds.ServiceLister.List(labels.Everything()))
+	}
+
+	if ds.SecretLister != nil {
+		result[reflect.TypeFor[v1.Secret]()] =
+			eraseSliceType(ds.SecretLister.List(labels.Everything()))
+	}
+
+	if ds.ConfigMapLister != nil {
+		result[reflect.TypeFor[v1.ConfigMap]()] =
+			eraseSliceType(ds.ConfigMapLister.List(labels.Everything()))
+	}
+
+	if ds.ServiceAccountLister != nil {
+		result[reflect.TypeFor[v1.ServiceAccount]()] =
+			eraseSliceType(ds.ServiceAccountLister.List(labels.Everything()))
+	}
+
+	if ds.ScyllaClusterLister != nil {
+		result[reflect.TypeFor[scyllav1.ScyllaCluster]()] =
+			eraseSliceType(ds.ScyllaClusterLister.List(labels.Everything()))
+	}
+
+	return result
 }
 
 func (b *builder) Collect(labels []string, function any) func(*sources.DataSource) {
