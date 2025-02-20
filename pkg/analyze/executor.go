@@ -1,3 +1,4 @@
 package analyze
 
-// TODO
+type Executor interface {
+}

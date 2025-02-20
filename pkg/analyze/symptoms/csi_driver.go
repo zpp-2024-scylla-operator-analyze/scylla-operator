@@ -5,16 +5,13 @@ import (
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 )
 
-var CsiDriverSymptoms = []*Symptom{
+var CsiDriverSymptoms = []*SymptomSet{
 	buildLocalCsiDriverMissingSymptom(),
 }
 
-func buildLocalCsiDriverMissingSymptom() *Symptom {
-	symptomSet := NewSymptomSet(
-		"local-csi-driver-missing",
-		"local-csi-driver CSIDriver, referenced by <NAME> StorageClass, is missing")
-
-	symptomSet.AddSign("", selectors.
+func buildLocalCsiDriverMissingSymptom() *SymptomSet {
+	csiSymptoms := NewSymptomSet("local-csi-driver-missing")
+	csiSymptoms.Add(selectors.
 		New().
 		Select("scylla-cluster", "ScyllaCluster").
 		Select("scylla-pod", "Pod").
@@ -42,5 +39,5 @@ func buildLocalCsiDriverMissingSymptom() *Symptom {
 		Join("scylla-cluster", "storage-class", "").
 		Join("storage-class", "csi-driver", "StorageClass").
 		Any())
-	return symptomSet
+	return csiSymptoms
 }
