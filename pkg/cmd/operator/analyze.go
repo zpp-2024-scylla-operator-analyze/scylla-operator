@@ -137,7 +137,7 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	var ds *sources.DataSource
 	var err error
 	if len(o.ArchivePath) > 0 {
-		ds, err = sources.NewDataSourceFromFS(ctx, o.ArchivePath, serializer.NewCodecFactory(scyllaScheme.Scheme).UniversalDecoder())
+		ds, err = sources.NewDataSourceFromFS(ctx, o.ArchivePath, serializer.NewCodecFactory(scyllaScheme.Scheme).UniversalDeserializer())
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
