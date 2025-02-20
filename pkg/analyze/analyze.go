@@ -2,12 +2,18 @@ package analyze
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
+	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
-	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
+	_ "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
+	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
 
 func Analyze(ds *sources.DataSource) ([]front.Diagnosis, error) {
+	// for key, val := range symptoms.Symptoms {
+	// 	klog.Infof("%s %v", key, val)
+	// }
 	smp := symptoms.BuildSymptoms()
 	klog.Info("Available symptoms:")
 	for _, val := range smp {

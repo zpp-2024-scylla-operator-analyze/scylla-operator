@@ -129,6 +129,18 @@ func NewSymptomSet(name string) SymptomSet {
 	}
 }
 
+func NewInternalSymptomSet(name string, children []*SymptomSet) SymptomSet {
+	childrenMap := make(map[string]*SymptomSet)
+	for _, subset := range children {
+		childrenMap[(*subset).Name()] = subset
+	}
+	return &symptomSet{
+		name:     "root",
+		symptoms: make([]*Symptom, 0),
+		children: childrenMap,
+	}
+}
+
 func (s *symptomSet) Name() string {
 	return s.name
 }
