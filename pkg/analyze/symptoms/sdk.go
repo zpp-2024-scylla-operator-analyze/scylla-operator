@@ -1,6 +1,7 @@
 package symptoms
 
 import (
+	"errors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 )
@@ -109,34 +110,27 @@ func (m *multiSymptom) SubSymptoms() []*Symptom {
 
 type SymptomSet interface {
 	Name() string
-	Symptoms() []*Symptom
+	Symptoms() map[string]*Symptom
+	DerivedSets() map[string]*SymptomSet
 
-	Add(*Symptom)
-	AddChild(*SymptomSet)
-	Match(*sources.DataSource) ([]front.Diagnosis, error)
+	Add(*Symptom) error
+	AddChild(*SymptomSet) error
 }
 
 type symptomSet struct {
 	name     string
-	symptoms []*Symptom
+	symptoms map[string]*Symptom
 	children map[string]*SymptomSet
 }
 
-func NewSymptomSet(name string) SymptomSet {
-	return &symptomSet{
-		name:     name,
-		symptoms: make([]*Symptom, 0),
-	}
-}
-
-func NewInternalSymptomSet(name string, children []*SymptomSet) SymptomSet {
+func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
 	childrenMap := make(map[string]*SymptomSet)
 	for _, subset := range children {
 		childrenMap[(*subset).Name()] = subset
 	}
 	return &symptomSet{
-		name:     "root",
-		symptoms: make([]*Symptom, 0),
+		name:     name,
+		symptoms: make(map[string]*Symptom, 0),
 		children: childrenMap,
 	}
 }
@@ -145,27 +139,28 @@ func (s *symptomSet) Name() string {
 	return s.name
 }
 
-func (s *symptomSet) Symptoms() []*Symptom {
+func (s *symptomSet) Symptoms() map[string]*Symptom {
 	return s.symptoms
 }
 
-func (s *symptomSet) Add(ss *Symptom) {
-	s.symptoms = append(s.symptoms, ss)
+func (s *symptomSet) DerivedSets() map[string]*SymptomSet {
+	return s.children
 }
 
-func (s *symptomSet) AddChild(ss *SymptomSet) {
-	s.children[(*ss).Name()] = ss
-}
-
-func (s *symptomSet) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	for _, sym := range s.symptoms {
-		diag, err := (*sym).Match(ds)
-		if err != nil {
-			return nil, err
-		}
-		if diag != nil || len(diag) > 0 {
-			return diag, nil
-		}
+func (s *symptomSet) Add(ss *Symptom) error {
+	_, isIn := s.symptoms[(*ss).Name()]
+	if isIn {
+		return errors.New("symptom already exists")
 	}
-	return nil, nil
+	s.symptoms[(*ss).Name()] = ss
+	return nil
+}
+
+func (s *symptomSet) AddChild(ss *SymptomSet) error {
+	_, isIn := s.children[(*ss).Name()]
+	if isIn {
+		return errors.New("symptom already exists")
+	}
+	s.children[(*ss).Name()] = ss
+	return nil
 }

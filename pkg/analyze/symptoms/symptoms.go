@@ -1,9 +1,23 @@
 package symptoms
 
-var Symptoms = NewSymptomSet()
+import (
+	"github.com/scylladb/scylla-operator/pkg/analyze/front"
+	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+)
 
-func BuildSymptoms() []*Symptom {
-	symptoms := make([]*Symptom, 0)
-	symptoms = append(symptoms, CsiDriverSymptoms...)
-	return symptoms
+var Symptoms = NewSymptomSet("root", []*SymptomSet{
+	&CsiDriverSymptoms,
+})
+
+func MatchAll(symptoms *SymptomSet, executor *Executor, ds *sources.DataSource, callback func(*Symptom, []front.Diagnosis, error)) {
+	for _, s := range (*symptoms).Symptoms() {
+		(*executor).Enqueue(Job{
+			Symptom:  s,
+			Callback: func(diag []front.Diagnosis, err error) { callback(s, diag, err) },
+		})
+	}
+	
+	for _, s := range (*symptoms).DerivedSets() {
+		MatchAll(s, executor, ds, callback)
+	}
 }

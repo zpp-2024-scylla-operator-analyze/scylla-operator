@@ -1,36 +1,36 @@
 package analyze
 
 import (
+	"context"
+	"github.com/pkg/errors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
-	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	_ "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
-	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"runtime"
 )
 
-func Analyze(ds *sources.DataSource) ([]front.Diagnosis, error) {
-	// for key, val := range symptoms.Symptoms {
-	// 	klog.Infof("%s %v", key, val)
-	// }
-	smp := symptoms.BuildSymptoms()
+func Analyze(ctx context.Context, ds *sources.DataSource) ([]front.Diagnosis, error) {
 	klog.Info("Available symptoms:")
-	for _, val := range smp {
+	for _, val := range symptoms.Symptoms.Symptoms() {
 		klog.Infof("%s %v", (*val).Name(), val)
 	}
 
-	issues := make([]front.Diagnosis, 0)
-	for _, s := range smp {
-		result := (*s).Match(ds)
-		err := front.Print(result)
-		if err != nil {
-			return nil, err
-		}
-		if result != nil && len(result) > 0 {
-			klog.Info(result)
-			issues = append(issues, result...)
-		}
+	matchExecutor := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
+	err := matchExecutor.Start()
+	if err != nil {
+		return nil, errors.Errorf("failed to start match worker pool: %v", err)
 	}
-	return issues, nil
+	symptoms.MatchAll(&symptoms.Symptoms, &matchExecutor, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
+		if err != nil {
+			klog.Warningf("symptom %v, error: %v", s, err)
+			return
+		}
+		err = front.Print(diagnoses)
+		if err != nil {
+			klog.Warningf("can't print diagnoses for symptom %v, diagnoses: %v, error: %v", s, diagnoses, err)
+		}
+	})
+	return nil, nil
 }
