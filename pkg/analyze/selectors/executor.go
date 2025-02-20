@@ -102,8 +102,7 @@ func (e *executor) traverse(
 ) bool {
 
 	if len(tuple) >= cap(tuple) {
-		e.process(callback, tuple)
-		return
+		return e.process(callback, tuple)
 	}
 
 	label := resources[len(tuple)].Label
