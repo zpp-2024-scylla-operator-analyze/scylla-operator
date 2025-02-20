@@ -19,10 +19,10 @@ var CsiDriverSymptoms = NewSymptomSet("csi-driver", []*SymptomSet{
 func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
 	nodriverbasic := NewSymptom("abc", "diaguwu", "sug",
 		selectors.
-			Select("scylla-cluster", selectors.Type[*scyllav1.ScyllaCluster]()).
-			Select("scylla-pod", selectors.Type[*v1.Pod]()).
-			Select("cluster-storage-class", selectors.Type[*storagev1.StorageClass]()).
-			Select("csi-driver", selectors.Type[*storagev1.CSIDriver]()).
+			Select("scylla-cluster", selectors.Type[scyllav1.ScyllaCluster]()).
+			Select("scylla-pod", selectors.Type[v1.Pod]()).
+			Select("cluster-storage-class", selectors.Type[storagev1.StorageClass]()).
+			Select("csi-driver", selectors.Type[storagev1.CSIDriver]()).
 			Filter("scylla-cluster", func(c *scyllav1.ScyllaCluster) bool {
 				storageClassXfs := false
 				conditionControllerProgressing := false
@@ -43,9 +43,9 @@ func buildLocalCsiDriverMissingSymptoms() *SymptomSet {
 			}).
 			Relate("scylla-cluster", "scylla-pod", "").
 			Relate("scylla-cluster", "storage-class", "").
-			Relate("storage-class", "csi-driver", "StorageClass").
+			Relate("storage-class", "csi-driver", "").
 			Collect(
-				[]string{"scylla-cluster", "storage-class"},
+				[]string{"scylla-cluster", "cluster-storage-class"},
 				func(cluster *scyllav1.ScyllaCluster, sc *storagev1.StorageClass) bool { return true }))
 
 	csiDriverSymptomSet := NewEmptySymptomSet("local-csi-driver-missing")

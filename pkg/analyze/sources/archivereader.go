@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	storagev1 "k8s.io/api/storage/v1"
+	storagev1listers "k8s.io/client-go/listers/storage/v1"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -95,5 +97,7 @@ func NewDataSourceFromFS(ctx context.Context, archivePath string, decoder runtim
 		ConfigMapLister:      corev1listers.NewConfigMapLister(indexers[reflect.TypeOf(&corev1.ConfigMap{})]),
 		ServiceAccountLister: corev1listers.NewServiceAccountLister(indexers[reflect.TypeOf(&corev1.ServiceAccount{})]),
 		ScyllaClusterLister:  scyllav1listers.NewScyllaClusterLister(indexers[reflect.TypeOf(&scyllav1.ScyllaCluster{})]),
+		StorageClassLister:   storagev1listers.NewStorageClassLister(indexers[reflect.TypeOf(&storagev1.StorageClass{})]),
+		CSIDriverLister:      storagev1listers.NewCSIDriverLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.CSIDriver{}))),
 	}, nil
 }

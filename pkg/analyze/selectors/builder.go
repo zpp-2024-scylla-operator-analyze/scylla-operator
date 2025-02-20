@@ -4,6 +4,7 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"reflect"
 )
@@ -103,6 +104,16 @@ func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
 	if ds.ScyllaClusterLister != nil {
 		result[reflect.TypeFor[scyllav1.ScyllaCluster]()] =
 			eraseSliceType(ds.ScyllaClusterLister.List(labels.Everything()))
+	}
+
+	if ds.StorageClassLister != nil {
+		result[reflect.TypeFor[storagev1.StorageClass]()] =
+			eraseSliceType(ds.StorageClassLister.List(labels.Everything()))
+	}
+
+	if ds.CSIDriverLister != nil {
+		result[reflect.TypeFor[storagev1.CSIDriver]()] =
+			eraseSliceType(ds.CSIDriverLister.List(labels.Everything()))
 	}
 
 	return result

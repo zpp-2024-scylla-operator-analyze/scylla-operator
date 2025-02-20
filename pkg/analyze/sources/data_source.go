@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	storagev1listers "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
 )
@@ -21,6 +22,8 @@ type DataSource struct {
 	ConfigMapLister      corev1listers.ConfigMapLister
 	ServiceAccountLister corev1listers.ServiceAccountLister
 	ScyllaClusterLister  scyllav1listers.ScyllaClusterLister
+	StorageClassLister   storagev1listers.StorageClassLister
+	CSIDriverLister      storagev1listers.CSIDriverLister
 }
 
 func BuildListerWithOptions[T any](
