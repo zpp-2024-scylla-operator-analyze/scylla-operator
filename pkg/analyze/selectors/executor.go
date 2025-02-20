@@ -139,5 +139,5 @@ func (e *executor) process(callback *function[bool], tuple []labeled[any]) bool 
 		args[resource.Label] = resource.Value
 	}
 
-	return callback.Call(args)
+	return callback.CallAsOne(args)
 }

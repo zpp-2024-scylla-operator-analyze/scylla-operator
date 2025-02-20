@@ -13,7 +13,6 @@ import (
 func Analyze(ctx context.Context, ds *sources.DataSource) ([]front.Diagnosis, error) {
 	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
 	symptoms.MatchAll(&symptoms.Symptoms, matchWorkerPool, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
-		klog.Infof("Callback for %v", s)
 		if err != nil {
 			klog.Warningf("symptom %v, error: %v", s, err)
 			return

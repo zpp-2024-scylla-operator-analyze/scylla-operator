@@ -66,3 +66,15 @@ func (f *function[R]) Call(args map[string]any) R {
 
 	return result[0].Interface().(R)
 }
+
+func (f *function[R]) CallAsOne(args map[string]any) R {
+	for _, label := range f.labels {
+		_, exists := args[label]
+		if !exists {
+			panic("TODO: Missing argument")
+		}
+	}
+
+	result := f.value.Call([]reflect.Value{reflect.ValueOf(args)})
+	return result[0].Interface().(R)
+}

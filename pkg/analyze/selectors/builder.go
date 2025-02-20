@@ -128,9 +128,12 @@ func (b *Selector) Collect(labels []string, function any) func(*sources.DataSour
 
 	callback := newFunction[bool](labels, function)
 	executor := newExecutor(b.resources, b.constraints, b.relations)
+	proxy := newFunction[bool]([]string{"allArgs"}, func(allArgs map[string]any) {
+		callback.Call(allArgs)
+	})
 
 	return func(ds *sources.DataSource) {
-		executor.execute(fromDataSource(ds), callback)
+		executor.execute(fromDataSource(ds), proxy)
 	}
 }
 

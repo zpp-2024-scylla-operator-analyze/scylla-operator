@@ -6,7 +6,7 @@ import (
 )
 
 var Symptoms = NewSymptomSet("root", []*OrSymptom{
-	//&CsiDriverSymptoms,
+	&CsiDriverSymptoms,
 	&DummySymptoms,
 })
 
