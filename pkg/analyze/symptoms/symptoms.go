@@ -5,12 +5,12 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 )
 
-var Symptoms = NewSymptomSet("root", []*OrSymptom{
-	&CsiDriverSymptoms,
+var Symptoms = NewSymptomSet("root", []*SymptomSet{
+	&StorageSymptoms,
 	&DummySymptoms,
 })
 
-func MatchAll(symptoms *OrSymptom, executor *MatchWorkerPool, ds *sources.DataSource, callback func(*Symptom, []front.Diagnosis, error)) {
+func MatchAll(symptoms *SymptomSet, executor *MatchWorkerPool, ds *sources.DataSource, callback func(*Symptom, []front.Diagnosis, error)) {
 	for _, s := range (*symptoms).Symptoms() {
 		(*executor).Enqueue(Job{
 			Symptom:  s,

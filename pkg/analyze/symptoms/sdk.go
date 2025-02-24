@@ -112,30 +112,34 @@ func (s *symptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
 //	return m.symptoms
 //}
 
-type OrSymptom interface {
+type SymptomSet interface {
 	Name() string
 	Symptoms() map[string]*Symptom
-	DerivedSets() map[string]*OrSymptom
+	DerivedSets() map[string]*SymptomSet
+	Parent() *SymptomSet
+	SetParent(*SymptomSet)
 
 	Add(*Symptom) error
-	AddChild(*OrSymptom) error
+	AddChild(*SymptomSet) error
 }
 
 type symptomSet struct {
 	name     string
+	parent   *SymptomSet
 	symptoms map[string]*Symptom
-	children map[string]*OrSymptom
+	children map[string]*SymptomSet
 }
 
-func NewEmptySymptomSet(name string) OrSymptom {
+func NewEmptySymptomSet(name string) SymptomSet {
 	return &symptomSet{
 		name:     name,
+		parent:   nil,
 		symptoms: make(map[string]*Symptom),
-		children: make(map[string]*OrSymptom),
+		children: make(map[string]*SymptomSet),
 	}
 }
 
-func NewSymptomSet(name string, children []*OrSymptom) OrSymptom {
+func NewSymptomSet(name string, children []*SymptomSet) SymptomSet {
 	ss := NewEmptySymptomSet(name)
 	for _, subset := range children {
 		err := ss.AddChild(subset)
@@ -155,8 +159,16 @@ func (s *symptomSet) Symptoms() map[string]*Symptom {
 	return s.symptoms
 }
 
-func (s *symptomSet) DerivedSets() map[string]*OrSymptom {
+func (s *symptomSet) DerivedSets() map[string]*SymptomSet {
 	return s.children
+}
+
+func (s *symptomSet) Parent() *SymptomSet {
+	return s.parent
+}
+
+func (s *symptomSet) SetParent(parent *SymptomSet) {
+	s.parent = parent
 }
 
 func (s *symptomSet) Add(ss *Symptom) error {
@@ -168,11 +180,14 @@ func (s *symptomSet) Add(ss *Symptom) error {
 	return nil
 }
 
-func (s *symptomSet) AddChild(ss *OrSymptom) error {
+func (s *symptomSet) AddChild(ss *SymptomSet) error {
 	_, isIn := s.children[(*ss).Name()]
 	if isIn {
 		return errors.New(fmt.Sprintf("symptom already exists: %v", ss))
 	}
 	s.children[(*ss).Name()] = ss
+
+	var thisAsSet SymptomSet = s
+	(*ss).SetParent(&thisAsSet)
 	return nil
 }

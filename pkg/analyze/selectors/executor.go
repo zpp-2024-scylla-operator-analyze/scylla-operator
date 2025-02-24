@@ -100,18 +100,19 @@ func (e *executor) traverse(
 	callback *function[bool],
 	tuple []labeled[any],
 ) bool {
-
-	if len(tuple) >= cap(tuple) {
+	idx := len(tuple)
+	if idx >= cap(tuple) {
 		return e.process(callback, tuple)
 	}
 
-	label := resources[len(tuple)].Label
+	label := resources[idx].Label
 outer:
-	for _, resource := range resources[len(tuple)].Value {
+	for _, resource := range resources[idx].Value {
 		labeled := labeled[any]{Label: label, Value: resource}
 
-		for other, relations := range relations[len(tuple)] {
+		for other, relations := range relations[idx] {
 			for _, relation := range relations {
+				//fmt.Printf("other %d len %d cap %d\n", other, idx, cap(tuple))
 				if !relation.Check(tuple[other], labeled) {
 					continue outer
 				}
@@ -129,15 +130,14 @@ outer:
 
 func (e *executor) process(callback *function[bool], tuple []labeled[any]) bool {
 	labels := callback.Labels()
-	args := make(map[string]any, len(labels))
+	resources := make(map[string]any, len(labels))
 
 	for _, resource := range tuple {
-		if _, exists := labels[resource.Label]; !exists {
-			continue
-		}
-
-		args[resource.Label] = resource.Value
+		resources[resource.Label] = resource.Value
 	}
 
+	args := map[string]any{
+		"allArgs": resources,
+	}
 	return callback.CallAsOne(args)
 }

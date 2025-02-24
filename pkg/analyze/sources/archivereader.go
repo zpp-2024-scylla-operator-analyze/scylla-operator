@@ -97,7 +97,7 @@ func NewDataSourceFromFS(ctx context.Context, archivePath string, decoder runtim
 		ConfigMapLister:      corev1listers.NewConfigMapLister(indexers[reflect.TypeOf(&corev1.ConfigMap{})]),
 		ServiceAccountLister: corev1listers.NewServiceAccountLister(indexers[reflect.TypeOf(&corev1.ServiceAccount{})]),
 		ScyllaClusterLister:  scyllav1listers.NewScyllaClusterLister(indexers[reflect.TypeOf(&scyllav1.ScyllaCluster{})]),
-		StorageClassLister:   storagev1listers.NewStorageClassLister(indexers[reflect.TypeOf(&storagev1.StorageClass{})]),
+		StorageClassLister:   storagev1listers.NewStorageClassLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.StorageClass{}))),
 		CSIDriverLister:      storagev1listers.NewCSIDriverLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.CSIDriver{}))),
 	}, nil
 }

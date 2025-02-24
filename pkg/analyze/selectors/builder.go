@@ -37,6 +37,11 @@ func (b *Selector) Select(label string, typ reflect.Type) *Selector {
 	return b
 }
 
+// SelectPhantom Defines a resource that should not exist in the cluster.
+func (b *Selector) SelectPhantom(label string, typ reflect.Type) *Selector {
+	panic("not implemented")
+}
+
 func (b *Selector) Filter(label string, f any) *Selector {
 	typ, defined := b.resources[label]
 	if !defined {
@@ -53,6 +58,13 @@ func (b *Selector) Filter(label string, f any) *Selector {
 	return b
 }
 
+// Relate Relates two resources labeled with lhs, rhs. f need not be commutative.
+// For phantom resources, the following rules apply:
+//   - phantom - phantom: this relation has no effect,
+//   - phantom - non-phantom: guarantees that the non-phantom resource is not related to a non-phantom resource
+//     that satisfies all requirements imposed on the phantom resource.
+//   - non-phantom - non-phantom: guarantees that the lhs resource is related to the rhs resource which satisfies
+//     all requirements imposed on the rhs resource.
 func (b *Selector) Relate(lhs, rhs string, f any) *Selector {
 	// TODO: Check input
 
@@ -138,12 +150,7 @@ func (b *Selector) Collect(labels []string, function any) func(*sources.DataSour
 }
 
 func (b *Selector) CollectAll(function any) func(*sources.DataSource) {
-	labels := make([]string, 0)
-	for label := range b.resources {
-		labels = append(labels, label)
-	}
-
-	callback := newFunction[bool](labels, function)
+	callback := newFunction[bool]([]string{"allArgs"}, function)
 	executor := newExecutor(b.resources, b.constraints, b.relations)
 
 	return func(ds *sources.DataSource) {
