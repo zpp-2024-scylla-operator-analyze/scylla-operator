@@ -42,7 +42,7 @@ resourceLoop:
 
 func (e *executor) execute(
 	resources map[reflect.Type][]any,
-	callback *function[bool],
+	callback func(map[string]any) bool,
 ) {
 	// TODO: Assert callback is ok
 
@@ -97,7 +97,7 @@ func (e *executor) execute(
 func (e *executor) traverse(
 	resources []labeled[[]any],
 	relations []map[int][]*relation,
-	callback *function[bool],
+	callback func(map[string]any) bool,
 	tuple []labeled[any],
 ) bool {
 
@@ -115,7 +115,6 @@ outer:
 				if !relation.Check(tuple[other], labeled) {
 					continue outer
 				}
-				//fmt.Println(relation.Check(tuple[other], labeled))
 			}
 		}
 
@@ -127,17 +126,15 @@ outer:
 	return true
 }
 
-func (e *executor) process(callback *function[bool], tuple []labeled[any]) bool {
-	labels := callback.Labels()
-	args := make(map[string]any, len(labels))
+func (e *executor) process(
+	callback func(map[string]any) bool,
+	tuple []labeled[any],
+) bool {
+	args := make(map[string]any, len(tuple))
 
 	for _, resource := range tuple {
-		if _, exists := labels[resource.Label]; !exists {
-			continue
-		}
-
 		args[resource.Label] = resource.Value
 	}
 
-	return callback.Call(args)
+	return callback(args)
 }

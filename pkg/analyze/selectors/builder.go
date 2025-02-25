@@ -119,7 +119,22 @@ func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
 	return result
 }
 
-func (b *builder) Collect(labels []string, function any) func(*sources.DataSource) {
+func (b *builder) Collect() func(*sources.DataSource) []map[string]any {
+	executor := newExecutor(b.resources, b.constraints, b.relations)
+
+	return func(ds *sources.DataSource) []map[string]any {
+		result := make([]map[string]any, 0)
+
+		executor.execute(fromDataSource(ds), func(resources map[string]any) bool {
+			result = append(result, resources)
+			return true
+		})
+
+		return result
+	}
+}
+
+func (b *builder) ForEach(labels []string, function any) func(*sources.DataSource) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
@@ -130,6 +145,35 @@ func (b *builder) Collect(labels []string, function any) func(*sources.DataSourc
 	executor := newExecutor(b.resources, b.constraints, b.relations)
 
 	return func(ds *sources.DataSource) {
-		executor.execute(fromDataSource(ds), callback)
+		executor.execute(fromDataSource(ds), func(resources map[string]any) bool {
+			labels := callback.Labels()
+			args := make(map[string]any, len(labels))
+
+			for label, resource := range resources {
+				if _, exists := labels[label]; !exists {
+					continue
+				}
+
+				args[label] = resource
+			}
+
+			return callback.Call(args)
+		})
 	}
+}
+
+func (b *builder) Any() func(*sources.DataSource) bool {
+	executor := newExecutor(b.resources, b.constraints, b.relations)
+
+	return func(ds *sources.DataSource) bool {
+		result := false
+
+		executor.execute(fromDataSource(ds), func(_ map[string]any) bool {
+			result = true
+			return false
+		})
+
+		return result
+	}
+
 }

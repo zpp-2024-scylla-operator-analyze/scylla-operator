@@ -36,8 +36,8 @@ func (l mockPodLister) Pods(_ string) corev1listers.PodNamespaceLister {
 	panic("")
 }
 
-func ExampleCollect() {
-	ds := &sources.DataSource{
+func mockDataSource() *sources.DataSource {
+	return &sources.DataSource{
 		PodLister: mockPodLister{
 			pods: []*v1.Pod{
 				&v1.Pod{
@@ -73,7 +73,7 @@ func ExampleCollect() {
 				&v1.Pod{
 					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "dns",
+						Name: "dns-1",
 					},
 					Spec: v1.PodSpec{
 						NodeName: "us-east1",
@@ -108,6 +108,11 @@ func ExampleCollect() {
 		},
 	}
 
+}
+
+func ExampleCollect() {
+	ds := mockDataSource()
+
 	s := Select("cluster", Type[scyllav1.ScyllaCluster]()).
 		Select("pod", Type[v1.Pod]()).
 		Filter("pod", func(pod *v1.Pod) bool {
@@ -116,17 +121,78 @@ func ExampleCollect() {
 		Relate("cluster", "pod", func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
 			return cluster.Name == pod.Spec.NodeName
 		}).
-		Collect(
+		Collect()
+
+	result := s(ds)
+	for _, match := range result {
+		cluster := match["cluster"].(*scyllav1.ScyllaCluster)
+		pod := match["pod"].(*v1.Pod)
+		fmt.Printf("%s %s\n", cluster.Name, pod.Name)
+	}
+
+	// Output: europe-central2 scylla-operator-1
+	// europe-central2 scylla-operator-2
+	// us-east1 scylla-operator-3
+}
+
+func ExampleForEach() {
+	ds := mockDataSource()
+
+	s := Select("cluster", Type[scyllav1.ScyllaCluster]()).
+		Select("pod", Type[v1.Pod]()).
+		Filter("pod", func(pod *v1.Pod) bool {
+			return strings.HasPrefix(pod.Name, "scylla-operator-")
+		}).
+		Relate("cluster", "pod", func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
+			return cluster.Name == pod.Spec.NodeName
+		}).
+		ForEach(
 			[]string{"cluster", "pod"},
 			func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
-				fmt.Printf("\"%s\" \"%s\"\n", cluster.Name, pod.Name)
+				fmt.Printf("%s %s\n", cluster.Name, pod.Name)
 				return true
 			},
 		)
 
 	s(ds)
 
-	// Output: "europe-central2" "scylla-operator-1"
-	// "europe-central2" "scylla-operator-2"
-	// "us-east1" "scylla-operator-3"
+	// Output: europe-central2 scylla-operator-1
+	// europe-central2 scylla-operator-2
+	// us-east1 scylla-operator-3
+}
+
+func ExampleAny() {
+	ds := mockDataSource()
+
+	s1 := Select("cluster", Type[scyllav1.ScyllaCluster]()).
+		Filter("cluster", func(cluster *scyllav1.ScyllaCluster) bool {
+			return cluster.Name == "europe-central2"
+		}).
+		Select("pod", Type[v1.Pod]()).
+		Filter("pod", func(pod *v1.Pod) bool {
+			return strings.HasPrefix(pod.Name, "dns-")
+		}).
+		Relate("cluster", "pod", func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
+			return cluster.Name == pod.Spec.NodeName
+		}).
+		Any()
+
+	s2 := Select("cluster", Type[scyllav1.ScyllaCluster]()).
+		Filter("cluster", func(cluster *scyllav1.ScyllaCluster) bool {
+			return cluster.Name == "us-east1"
+		}).
+		Select("pod", Type[v1.Pod]()).
+		Filter("pod", func(pod *v1.Pod) bool {
+			return strings.HasPrefix(pod.Name, "dns-")
+		}).
+		Relate("cluster", "pod", func(cluster *scyllav1.ScyllaCluster, pod *v1.Pod) bool {
+			return cluster.Name == pod.Spec.NodeName
+		}).
+		Any()
+
+	fmt.Printf("%t\n", s1(ds))
+	fmt.Printf("%t\n", s2(ds))
+
+	// Output: false
+	// true
 }
