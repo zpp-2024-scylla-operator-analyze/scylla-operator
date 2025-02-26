@@ -23,5 +23,13 @@ func (r *relation) Labels() (string, string) {
 }
 
 func (r *relation) Check(lhs, rhs labeled[any]) bool {
+	if lhs.Value == nil {
+		panic("lhs is nil")
+	}
+
+	if rhs.Value == nil {
+		panic("rhs is nil")
+	}
+
 	return r.Call(map[string]any{lhs.Label: lhs.Value, rhs.Label: rhs.Value})
 }
