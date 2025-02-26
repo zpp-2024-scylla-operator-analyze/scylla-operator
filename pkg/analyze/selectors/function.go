@@ -53,13 +53,17 @@ func (f *function[R]) Labels() map[string]reflect.Type {
 func (f *function[R]) Call(args map[string]any) R {
 	in := make([]reflect.Value, 0, len(f.labels))
 
-	for _, label := range f.labels {
+	for i, label := range f.labels {
 		arg, exists := args[label]
 		if !exists {
 			panic("TODO: Missing argument")
 		}
 
-		in = append(in, reflect.ValueOf(arg))
+		if arg == nil {
+			in = append(in, reflect.Zero(f.value.Type().In(i)))
+		} else {
+			in = append(in, reflect.ValueOf(arg))
+		}
 	}
 
 	result := f.value.Call(in)

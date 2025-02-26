@@ -2,16 +2,13 @@ package selectors
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
-	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-	v1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"reflect"
 )
 
 type builder struct {
 	resources   map[string]reflect.Type
 	constraints map[string][]*constraint
+	assertion   map[string]*predicate
 	relations   []*relation
 }
 
@@ -23,6 +20,7 @@ func Select(label string, typ reflect.Type) *builder {
 	return (&builder{
 		resources:   make(map[string]reflect.Type),
 		constraints: make(map[string][]*constraint),
+		assertion:   make(map[string]*predicate),
 		relations:   make([]*relation, 0),
 	}).Select(label, typ)
 }
@@ -53,6 +51,22 @@ func (b *builder) Filter(label string, f any) *builder {
 	return b
 }
 
+func (b *builder) Assert(label string, f any) *builder {
+	typ, defined := b.resources[label]
+	if !defined {
+		panic("TODO: Handle undefined labels in Filter")
+	}
+
+	assertion := newPredicate(label, f)
+	if assertion.Labels()[label] != reflect.PointerTo(typ) {
+		panic("TODO: Handle mismatched type in Filter")
+	}
+
+	b.assertion[label] = assertion
+
+	return b
+}
+
 func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	// TODO: Check input
 
@@ -63,69 +77,18 @@ func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	return b
 }
 
-func eraseSliceType[T any](slice []T, _ error) []any {
-	result := make([]any, len(slice))
+func (b *builder) Collect() func(*sources.DataSource2) []map[string]any {
+	executor := newExecutor(
+		b.resources,
+		b.constraints,
+		b.assertion,
+		b.relations,
+	)
 
-	for i, _ := range slice {
-		result[i] = slice[i]
-	}
-
-	return result
-}
-
-func fromDataSource(ds *sources.DataSource) map[reflect.Type][]any {
-	result := make(map[reflect.Type][]any)
-
-	if ds.PodLister != nil {
-		result[reflect.TypeFor[v1.Pod]()] =
-			eraseSliceType(ds.PodLister.List(labels.Everything()))
-	}
-
-	if ds.ServiceLister != nil {
-		result[reflect.TypeFor[v1.Service]()] =
-			eraseSliceType(ds.ServiceLister.List(labels.Everything()))
-	}
-
-	if ds.SecretLister != nil {
-		result[reflect.TypeFor[v1.Secret]()] =
-			eraseSliceType(ds.SecretLister.List(labels.Everything()))
-	}
-
-	if ds.ConfigMapLister != nil {
-		result[reflect.TypeFor[v1.ConfigMap]()] =
-			eraseSliceType(ds.ConfigMapLister.List(labels.Everything()))
-	}
-
-	if ds.ServiceAccountLister != nil {
-		result[reflect.TypeFor[v1.ServiceAccount]()] =
-			eraseSliceType(ds.ServiceAccountLister.List(labels.Everything()))
-	}
-
-	if ds.ScyllaClusterLister != nil {
-		result[reflect.TypeFor[scyllav1.ScyllaCluster]()] =
-			eraseSliceType(ds.ScyllaClusterLister.List(labels.Everything()))
-	}
-
-	if ds.StorageClassLister != nil {
-		result[reflect.TypeFor[storagev1.StorageClass]()] =
-			eraseSliceType(ds.StorageClassLister.List(labels.Everything()))
-	}
-
-	if ds.CSIDriverLister != nil {
-		result[reflect.TypeFor[storagev1.CSIDriver]()] =
-			eraseSliceType(ds.CSIDriverLister.List(labels.Everything()))
-	}
-
-	return result
-}
-
-func (b *builder) Collect() func(*sources.DataSource) []map[string]any {
-	executor := newExecutor(b.resources, b.constraints, b.relations)
-
-	return func(ds *sources.DataSource) []map[string]any {
+	return func(ds *sources.DataSource2) []map[string]any {
 		result := make([]map[string]any, 0)
 
-		executor.execute(fromDataSource(ds), func(resources map[string]any) bool {
+		executor.execute(ds, func(resources map[string]any) bool {
 			result = append(result, resources)
 			return true
 		})
@@ -134,7 +97,7 @@ func (b *builder) Collect() func(*sources.DataSource) []map[string]any {
 	}
 }
 
-func (b *builder) ForEach(labels []string, function any) func(*sources.DataSource) {
+func (b *builder) ForEach(labels []string, function any) func(*sources.DataSource2) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
@@ -142,10 +105,15 @@ func (b *builder) ForEach(labels []string, function any) func(*sources.DataSourc
 	}
 
 	callback := newFunction[bool](labels, function)
-	executor := newExecutor(b.resources, b.constraints, b.relations)
+	executor := newExecutor(
+		b.resources,
+		b.constraints,
+		b.assertion,
+		b.relations,
+	)
 
-	return func(ds *sources.DataSource) {
-		executor.execute(fromDataSource(ds), func(resources map[string]any) bool {
+	return func(ds *sources.DataSource2) {
+		executor.execute(ds, func(resources map[string]any) bool {
 			labels := callback.Labels()
 			args := make(map[string]any, len(labels))
 
@@ -162,13 +130,18 @@ func (b *builder) ForEach(labels []string, function any) func(*sources.DataSourc
 	}
 }
 
-func (b *builder) Any() func(*sources.DataSource) bool {
-	executor := newExecutor(b.resources, b.constraints, b.relations)
+func (b *builder) Any() func(*sources.DataSource2) bool {
+	executor := newExecutor(
+		b.resources,
+		b.constraints,
+		b.assertion,
+		b.relations,
+	)
 
-	return func(ds *sources.DataSource) bool {
+	return func(ds *sources.DataSource2) bool {
 		result := false
 
-		executor.execute(fromDataSource(ds), func(_ map[string]any) bool {
+		executor.execute(ds, func(_ map[string]any) bool {
 			result = true
 			return false
 		})
