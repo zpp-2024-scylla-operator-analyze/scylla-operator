@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
 	"github.com/scylladb/scylla-operator/pkg/genericclioptions"
+	soscheme "github.com/scylladb/scylla-operator/pkg/scheme"
 	"github.com/scylladb/scylla-operator/pkg/version"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -28,7 +31,8 @@ var (
 type AnalyzeOptions struct {
 	genericclioptions.ClientConfig
 
-	ArchivePath string
+	ArchivePath           string
+	DisableStrictEncoding bool
 
 	kubeClient   *kubernetes.Clientset
 	scyllaClient *scyllaversioned.Clientset
@@ -76,6 +80,7 @@ func (o *AnalyzeOptions) AddFlags(cmd *cobra.Command) {
 	o.ClientConfig.AddFlags(cmd)
 
 	cmd.Flags().StringVarP(&o.ArchivePath, "archive-path", "", o.ArchivePath, "Path to a compressed must-gather archive or a directory having must-gather structure")
+	cmd.Flags().BoolVarP(&o.DisableStrictEncoding, "disable-strict-encoding", "", false, "Disable strict mode in deserializer used for parsing archive")
 }
 
 func (o *AnalyzeOptions) Validate() error {
@@ -132,7 +137,13 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 
 	var err error
 	if len(o.ArchivePath) > 0 {
-		_, err = analyze.DataSource{}, errors.New("must-gather archives are currently unsupported")
+		var codecFactory serializer.CodecFactory
+		if o.DisableStrictEncoding {
+			codecFactory = serializer.NewCodecFactory(soscheme.Scheme, serializer.DisableStrict)
+		} else {
+			codecFactory = serializer.NewCodecFactory(soscheme.Scheme, serializer.EnableStrict)
+		}
+		_, err = analyze.NewDataSourceFromFS(ctx, o.ArchivePath, codecFactory.UniversalDeserializer())
 		if err != nil {
 			return fmt.Errorf("can't build data source from must-gather: %w", err)
 		}
