@@ -28,6 +28,39 @@ func getIndexerForType(indexers map[reflect.Type]cache.Indexer, objType reflect.
 	return indexer
 }
 
+
+func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (DataSource2, error) {
+	ds := NewDataSource2()
+
+	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Ext(path) != ".yaml" {
+			return nil
+		}
+		content, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return fmt.Errorf("can't read file %q: %w", path, err)
+		}
+		obj, _, err := decoder.Decode(content, nil, nil)
+
+		if err != nil {
+			if !runtime.IsNotRegisteredError(err) {
+				return fmt.Errorf("can't deserialize file %q: %w", path, err)
+			}
+			return nil
+		}
+		ds.Add(obj)
+		return nil
+	})
+
+	if err != nil {
+		return ds, fmt.Errorf("can't walk the file tree: %w", err)
+	}
+	return ds, nil
+}
+
 func IndexersFromFS(fsys fs.FS, decoder runtime.Decoder) (map[reflect.Type]cache.Indexer, error) {
 	indexers := make(map[reflect.Type]cache.Indexer)
 
