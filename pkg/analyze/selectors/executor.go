@@ -28,7 +28,7 @@ func newExecutor(
 }
 
 func filter(resources []any, label string, constraints []*constraint) []any {
-	result := make([]any, 0, len(resources) + 1)
+	result := make([]any, 0, len(resources)+1)
 
 resourceLoop:
 	for _, resource := range append(resources, nil) {
@@ -77,7 +77,7 @@ func (e *executor) execute(
 	}
 
 	relations := make([]map[int]*relation, len(ordered))
-	for i, _ := range relations {
+	for i := range relations {
 		relations[i] = make(map[int]*relation)
 	}
 

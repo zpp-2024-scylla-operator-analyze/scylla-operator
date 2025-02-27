@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-type Builder struct {
+type builder struct {
 	resources   map[string]reflect.Type
 	constraints map[string][]*constraint
 	assertion   map[string]*predicate
@@ -17,8 +17,8 @@ func Type[T any]() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
-func Select(label string, typ reflect.Type) *Builder {
-	return (&Builder{
+func Select(label string, typ reflect.Type) *builder {
+	return (&builder{
 		resources:   make(map[string]reflect.Type),
 		constraints: make(map[string][]*constraint),
 		assertion:   make(map[string]*predicate),
@@ -26,7 +26,7 @@ func Select(label string, typ reflect.Type) *Builder {
 	}).Select(label, typ)
 }
 
-func (b *Builder) Select(label string, typ reflect.Type) *Builder {
+func (b *builder) Select(label string, typ reflect.Type) *builder {
 	if _, exists := b.resources[label]; exists {
 		panic("TODO: Handle duplicate labels")
 	}
@@ -36,7 +36,7 @@ func (b *Builder) Select(label string, typ reflect.Type) *Builder {
 	return b
 }
 
-func (b *Builder) Filter(label string, f any) *Builder {
+func (b *builder) Filter(label string, f any) *builder {
 	typ, defined := b.resources[label]
 	if !defined {
 		panic("TODO: Handle undefined labels in Filter")
@@ -52,7 +52,7 @@ func (b *Builder) Filter(label string, f any) *Builder {
 	return b
 }
 
-func (b *Builder) Assert(label string, f any) *Builder {
+func (b *builder) Assert(label string, f any) *builder {
 	typ, defined := b.resources[label]
 	if !defined {
 		panic("TODO: Handle undefined labels in Filter")
@@ -68,7 +68,7 @@ func (b *Builder) Assert(label string, f any) *Builder {
 	return b
 }
 
-func (b *Builder) Relate(lhs, rhs string, f any) *Builder {
+func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	// TODO: Check input
 
 	relation := newRelation(lhs, rhs, f)
@@ -78,11 +78,11 @@ func (b *Builder) Relate(lhs, rhs string, f any) *Builder {
 	return b
 }
 
-func (b *Builder) CollectAll() func(*sources.DataSource2) []map[string]any {
+func (b *builder) CollectAll() func(*sources.DataSource2) []map[string]any {
 	return b.Collect(math.MaxInt)
 }
 
-func (b *Builder) Collect(limit int) func(*sources.DataSource2) []map[string]any {
+func (b *builder) Collect(limit int) func(*sources.DataSource2) []map[string]any {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
@@ -107,7 +107,7 @@ func (b *Builder) Collect(limit int) func(*sources.DataSource2) []map[string]any
 	}
 }
 
-func (b *Builder) ForEach(labels []string, function any) func(*sources.DataSource2) {
+func (b *builder) ForEach(labels []string, function any) func(*sources.DataSource2) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
@@ -140,7 +140,7 @@ func (b *Builder) ForEach(labels []string, function any) func(*sources.DataSourc
 	}
 }
 
-func (b *Builder) Any() func(*sources.DataSource2) bool {
+func (b *builder) Any() func(*sources.DataSource2) bool {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,

@@ -42,7 +42,8 @@ func buildLocalCsiDriverMissingSymptoms() *symptoms.SymptomSet {
 			}).
 			Relate("storage-class", "csi-driver", func(sc *storagev1.StorageClass, d *storagev1.CSIDriver) bool {
 				return sc.Provisioner == d.Name
-			}))
+			}).
+			Collect(symptoms.DefaultLimit))
 
 	csiDriverMissingSymptoms := symptoms.NewEmptySymptomSet("csi-driver-missing")
 	err := csiDriverMissingSymptoms.Add(&csiDriverMissing)
@@ -105,7 +106,8 @@ func buildStorageClassMissingSymptoms() *symptoms.SymptomSet {
 			}).
 			Relate("storage-class", "csi-driver", func(sc *storagev1.StorageClass, d *storagev1.CSIDriver) bool {
 				return sc.Provisioner == d.Name
-			}))
+			}).
+			Collect(symptoms.DefaultLimit))
 
 	storageClassMissingSymptoms := symptoms.NewEmptySymptomSet("StorageClass missing")
 	err := storageClassMissingSymptoms.Add(&notDeployedStorageClass)
