@@ -28,7 +28,7 @@ func NewDataSource2() DataSource2 {
 	return ds
 }
 
-func (ds *DataSource2) Add(obj interface{}){
+func (ds *DataSource2) Add(obj interface{}) {
 	t := reflect.TypeOf(obj)
 	if _, exists := ds.Objects[t]; !exists {
 		ds.Objects[t] = make([]interface{}, 0)
@@ -36,9 +36,9 @@ func (ds *DataSource2) Add(obj interface{}){
 	ds.Objects[t] = append(ds.Objects[t], obj)
 }
 
-func (ds* DataSource2) List(objType reflect.Type) ([]interface{}){
+func (ds *DataSource2) List(objType reflect.Type) []interface{} {
 	list, exists := ds.Objects[objType]
-	if !exists{
+	if !exists {
 		return make([]interface{}, 0)
 	}
 	return list
@@ -151,7 +151,7 @@ func BuildList(
 	ctx context.Context,
 	ds DataSource2,
 	listFunc func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error),
-) error{
+) error {
 	p := pager.New(pager.SimplePageFunc(func(opts metav1.ListOptions) (runtime.Object, error) {
 		return listFunc(ctx, opts)
 	}))
@@ -171,7 +171,7 @@ func BuildList(
 	if err != nil {
 		return fmt.Errorf("can't iterate over list items: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -179,7 +179,7 @@ func NewDataSource2FromListers(
 	ctx context.Context,
 	kubeClient kubernetes.Interface,
 	scyllaClient scyllaversioned.Interface,
-) (*DataSource2, error){
+) (*DataSource2, error) {
 	ds := NewDataSource2()
 
 	err := BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {

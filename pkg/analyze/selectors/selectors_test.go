@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
-	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 	"reflect"
 	// "strings"
 )
@@ -44,7 +41,7 @@ func strptr(s string) *string {
 
 func ExampleMissingCSIDriver() {
 	resources := map[reflect.Type][]any{
-		Type[scyllav1.ScyllaCluster](): []any{
+		Type[*scyllav1.ScyllaCluster](): []any{
 			&scyllav1.ScyllaCluster{
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
@@ -82,8 +79,8 @@ func ExampleMissingCSIDriver() {
 				Status: scyllav1.ScyllaClusterStatus{},
 			},
 		},
-		Type[v1.Pod](): []any{},
-		Type[storagev1.StorageClass](): []any{
+		Type[*v1.Pod](): []any{},
+		Type[*storagev1.StorageClass](): []any{
 			&storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "scylladb-local-xfs",
@@ -97,7 +94,7 @@ func ExampleMissingCSIDriver() {
 				Provisioner: "dummy.csi.scylladb.com",
 			},
 		},
-		Type[storagev1.CSIDriver](): []any{
+		Type[*storagev1.CSIDriver](): []any{
 			&storagev1.CSIDriver{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "dummy.csi.scylladb.com",
@@ -110,9 +107,9 @@ func ExampleMissingCSIDriver() {
 		Objects: resources,
 	}
 
-	builder := Select("scylla-cluster", Type[scyllav1.ScyllaCluster]()).
-		Select("storage-class", Type[storagev1.StorageClass]()).
-		Select("csi-driver", Type[storagev1.CSIDriver]()).
+	builder := Select("scylla-cluster", Type[*scyllav1.ScyllaCluster]()).
+		Select("storage-class", Type[*storagev1.StorageClass]()).
+		Select("csi-driver", Type[*storagev1.CSIDriver]()).
 		Filter("scylla-cluster", func(c *scyllav1.ScyllaCluster) bool {
 			return c != nil
 		}).
@@ -135,7 +132,7 @@ func ExampleMissingCSIDriver() {
 		})
 
 	selectorAny := builder.Any()
-	selectorCollect := builder.Collect()
+	selectorCollect := builder.CollectAll()
 
 	fmt.Printf("%t\n", selectorAny(snapshot))
 

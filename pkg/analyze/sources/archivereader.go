@@ -28,8 +28,7 @@ func getIndexerForType(indexers map[reflect.Type]cache.Indexer, objType reflect.
 	return indexer
 }
 
-
-func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (DataSource2, error) {
+func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (*DataSource2, error) {
 	ds := NewDataSource2()
 
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
@@ -56,9 +55,9 @@ func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (DataSource2, err
 	})
 
 	if err != nil {
-		return ds, fmt.Errorf("can't walk the file tree: %w", err)
+		return nil, fmt.Errorf("can't walk the file tree: %w", err)
 	}
-	return ds, nil
+	return &ds, nil
 }
 
 func IndexersFromFS(fsys fs.FS, decoder runtime.Decoder) (map[reflect.Type]cache.Indexer, error) {

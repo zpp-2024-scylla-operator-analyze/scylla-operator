@@ -5,22 +5,53 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
-	_ "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
+	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
 	"k8s.io/klog/v2"
 	"runtime"
 )
 
-func Analyze(ctx context.Context, ds *sources.DataSource) ([]front.Diagnosis, error) {
-	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, runtime.NumCPU())
-	symptoms.MatchAll(&symptoms.Symptoms, matchWorkerPool, ds, func(s *symptoms.Symptom, diagnoses []front.Diagnosis, err error) {
-		if err != nil {
-			klog.Warningf("symptom %v, error: %v", s, err)
-			return
+func Analyze(ctx context.Context, ds *sources.DataSource2) error {
+	statusChan := make(chan symptoms.JobStatus)
+	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, statusChan, runtime.NumCPU())
+	matchWorkerPool.Start()
+	defer close(statusChan)
+	defer matchWorkerPool.Finish()
+
+	enqueued := matchWorkerPool.EnqueueAll(&rules.Symptoms)
+	klog.Infof("enqueued %d symptoms", enqueued)
+
+	finished := 0
+	for {
+		done := false
+
+		select {
+		case <-ctx.Done():
+			done = true
+		case status := <-statusChan:
+			finished++
+
+			if status.Error != nil {
+				klog.Warningf("symptom %s error: %v", (*status.Job.Symptom).Name(), status.Error)
+			}
+			if status.Issues != nil {
+				for _, issue := range status.Issues {
+					err := front.Print([]front.Diagnosis{front.NewDiagnosis(issue.Symptom, issue.Resources)})
+					if err != nil {
+						klog.Warningf("can't print diagnosis: %v", err)
+					}
+				}
+			}
+
+			if finished == enqueued {
+				done = true
+			}
 		}
-		err = front.Print(diagnoses)
-		if err != nil {
-			klog.Warningf("can't print diagnoses for symptom %v, error: %v, diagnoses: %v", s, err, diagnoses)
+
+		if done {
+			break
 		}
-	})
-	return nil, nil
+	}
+
+	klog.Infof("scanned the cluster for %d symptoms", enqueued)
+	return nil
 }

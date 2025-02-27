@@ -3,6 +3,12 @@ package front
 import "fmt"
 
 func Print(diagnoses []Diagnosis) error {
-	fmt.Printf("PRINT %v\n", diagnoses)
+	for _, diag := range diagnoses {
+		symptom := "<UNKNOWN>"
+		if diag.symptom != nil {
+			symptom = (*diag.symptom).Name()
+		}
+		fmt.Printf("SYMPTOM %s RESOURCES: %v\n", symptom, diag.resources)
+	}
 	return nil
 }
