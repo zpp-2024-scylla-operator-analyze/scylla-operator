@@ -28,7 +28,7 @@ func newExecutor(
 }
 
 func filter(resources []any, label string, constraints []*constraint) []any {
-	result := make([]any, 0, len(resources)+1)
+	result := make([]any, 0, len(resources) + 1)
 
 resourceLoop:
 	for _, resource := range append(resources, nil) {

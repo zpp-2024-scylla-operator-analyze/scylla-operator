@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -56,6 +57,7 @@ func (f *function[R]) Call(args map[string]any) R {
 	for i, label := range f.labels {
 		arg, exists := args[label]
 		if !exists {
+			fmt.Printf("expected labels: %v got args: %v", f.labels, args)
 			panic("TODO: Missing argument")
 		}
 

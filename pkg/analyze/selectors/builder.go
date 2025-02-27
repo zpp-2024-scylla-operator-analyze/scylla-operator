@@ -2,10 +2,11 @@ package selectors
 
 import (
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"math"
 	"reflect"
 )
 
-type builder struct {
+type Builder struct {
 	resources   map[string]reflect.Type
 	constraints map[string][]*constraint
 	assertion   map[string]*predicate
@@ -16,8 +17,8 @@ func Type[T any]() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
-func Select(label string, typ reflect.Type) *builder {
-	return (&builder{
+func Select(label string, typ reflect.Type) *Builder {
+	return (&Builder{
 		resources:   make(map[string]reflect.Type),
 		constraints: make(map[string][]*constraint),
 		assertion:   make(map[string]*predicate),
@@ -25,7 +26,7 @@ func Select(label string, typ reflect.Type) *builder {
 	}).Select(label, typ)
 }
 
-func (b *builder) Select(label string, typ reflect.Type) *builder {
+func (b *Builder) Select(label string, typ reflect.Type) *Builder {
 	if _, exists := b.resources[label]; exists {
 		panic("TODO: Handle duplicate labels")
 	}
@@ -35,14 +36,14 @@ func (b *builder) Select(label string, typ reflect.Type) *builder {
 	return b
 }
 
-func (b *builder) Filter(label string, f any) *builder {
+func (b *Builder) Filter(label string, f any) *Builder {
 	typ, defined := b.resources[label]
 	if !defined {
 		panic("TODO: Handle undefined labels in Filter")
 	}
 
 	constraint := newConstraint(label, f)
-	if constraint.Labels()[label] != reflect.PointerTo(typ) {
+	if constraint.Labels()[label] != typ {
 		panic("TODO: Handle mismatched type in Filter")
 	}
 
@@ -51,15 +52,15 @@ func (b *builder) Filter(label string, f any) *builder {
 	return b
 }
 
-func (b *builder) Assert(label string, f any) *builder {
+func (b *Builder) Assert(label string, f any) *Builder {
 	typ, defined := b.resources[label]
 	if !defined {
 		panic("TODO: Handle undefined labels in Filter")
 	}
 
 	assertion := newPredicate(label, f)
-	if assertion.Labels()[label] != reflect.PointerTo(typ) {
-		panic("TODO: Handle mismatched type in Filter")
+	if assertion.Labels()[label] != typ {
+		panic("TODO: Handle mismatched type in Assert")
 	}
 
 	b.assertion[label] = assertion
@@ -67,7 +68,7 @@ func (b *builder) Assert(label string, f any) *builder {
 	return b
 }
 
-func (b *builder) Relate(lhs, rhs string, f any) *builder {
+func (b *Builder) Relate(lhs, rhs string, f any) *Builder {
 	// TODO: Check input
 
 	relation := newRelation(lhs, rhs, f)
@@ -77,7 +78,11 @@ func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	return b
 }
 
-func (b *builder) Collect() func(*sources.DataSource2) []map[string]any {
+func (b *Builder) CollectAll() func(*sources.DataSource2) []map[string]any {
+	return b.Collect(math.MaxInt)
+}
+
+func (b *Builder) Collect(limit int) func(*sources.DataSource2) []map[string]any {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
@@ -87,17 +92,22 @@ func (b *builder) Collect() func(*sources.DataSource2) []map[string]any {
 
 	return func(ds *sources.DataSource2) []map[string]any {
 		result := make([]map[string]any, 0)
+		count := 0
 
 		executor.execute(ds, func(resources map[string]any) bool {
-			result = append(result, resources)
-			return true
+			if count < limit {
+				result = append(result, resources)
+				count += 1
+				return true
+			}
+			return false
 		})
 
 		return result
 	}
 }
 
-func (b *builder) ForEach(labels []string, function any) func(*sources.DataSource2) {
+func (b *Builder) ForEach(labels []string, function any) func(*sources.DataSource2) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
@@ -130,7 +140,7 @@ func (b *builder) ForEach(labels []string, function any) func(*sources.DataSourc
 	}
 }
 
-func (b *builder) Any() func(*sources.DataSource2) bool {
+func (b *Builder) Any() func(*sources.DataSource2) bool {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
@@ -148,5 +158,4 @@ func (b *builder) Any() func(*sources.DataSource2) bool {
 
 		return result
 	}
-
 }

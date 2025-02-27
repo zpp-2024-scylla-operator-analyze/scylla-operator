@@ -28,8 +28,7 @@ func getIndexerForType(indexers map[reflect.Type]cache.Indexer, objType reflect.
 	return indexer
 }
 
-
-func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (DataSource2, error) {
+func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (*DataSource2, error) {
 	ds := NewDataSource2()
 
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
@@ -56,9 +55,9 @@ func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (DataSource2, err
 	})
 
 	if err != nil {
-		return ds, fmt.Errorf("can't walk the file tree: %w", err)
+		return nil, fmt.Errorf("can't walk the file tree: %w", err)
 	}
-	return ds, nil
+	return &ds, nil
 }
 
 func IndexersFromFS(fsys fs.FS, decoder runtime.Decoder) (map[reflect.Type]cache.Indexer, error) {
@@ -130,7 +129,7 @@ func NewDataSourceFromFS(ctx context.Context, archivePath string, decoder runtim
 		ConfigMapLister:      corev1listers.NewConfigMapLister(indexers[reflect.TypeOf(&corev1.ConfigMap{})]),
 		ServiceAccountLister: corev1listers.NewServiceAccountLister(indexers[reflect.TypeOf(&corev1.ServiceAccount{})]),
 		ScyllaClusterLister:  scyllav1listers.NewScyllaClusterLister(indexers[reflect.TypeOf(&scyllav1.ScyllaCluster{})]),
-		StorageClassLister:   storagev1listers.NewStorageClassLister(indexers[reflect.TypeOf(&storagev1.StorageClass{})]),
+		StorageClassLister:   storagev1listers.NewStorageClassLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.StorageClass{}))),
 		CSIDriverLister:      storagev1listers.NewCSIDriverLister(getIndexerForType(indexers, reflect.TypeOf(&storagev1.CSIDriver{}))),
 	}, nil
 }
