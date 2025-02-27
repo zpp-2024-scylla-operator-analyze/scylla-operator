@@ -16,7 +16,7 @@ func newRelation(lhs, rhs string, f any) *relation {
 
 func (r *relation) Labels() (string, string) {
 	labels := make([]string, 0, 2)
-	for label, _ := range r.function.Labels() {
+	for label := range r.function.Labels() {
 		labels = append(labels, label)
 	}
 	return labels[0], labels[1]

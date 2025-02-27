@@ -3,7 +3,6 @@ package symptoms
 import (
 	"errors"
 	"fmt"
-	"github.com/scylladb/scylla-operator/pkg/analyze/selectors"
 	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
 	"k8s.io/klog/v2"
 )
@@ -21,22 +20,16 @@ type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    *selectors.Builder
-	matchLimit  int
+	selector    func(*sources.DataSource2) []map[string]any
 }
 
-func NewSymptomWithMatchLimit(name string, diag string, suggestions string, limit int, selector *selectors.Builder) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector func(*sources.DataSource2) []map[string]any) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
 		suggestions: []string{suggestions},
 		selector:    selector,
-		matchLimit:  limit,
 	}
-}
-
-func NewSymptom(name string, diag string, suggestions string, selector *selectors.Builder) Symptom {
-	return NewSymptomWithMatchLimit(name, diag, suggestions, DefaultLimit, selector)
 }
 
 func (s *symptom) Name() string {
@@ -52,7 +45,7 @@ func (s *symptom) Suggestions() []string {
 }
 
 func (s *symptom) Match(ds *sources.DataSource2) ([]Issue, error) {
-	res := s.selector.Collect(s.matchLimit)(ds)
+	res := s.selector(ds)
 	if res != nil && len(res) > 0 {
 		issues := make([]Issue, len(res))
 

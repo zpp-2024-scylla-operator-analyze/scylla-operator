@@ -16,7 +16,8 @@ func buildBasicDummySymptoms() *symptoms.SymptomSet {
 	emptyCluster := symptoms.NewSymptom("cluster", "cluster diagnosis", "cluster suggestion",
 		selectors.
 			Select("cluster", selectors.Type[*scyllav1.ScyllaCluster]()).
-			Filter("cluster", func(c *scyllav1.ScyllaCluster) bool { return c != nil }))
+			Filter("cluster", func(c *scyllav1.ScyllaCluster) bool { return c != nil }).
+			Collect(symptoms.DefaultLimit))
 	basicSet.Add(&emptyCluster)
 
 	return &basicSet

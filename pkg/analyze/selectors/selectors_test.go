@@ -41,7 +41,7 @@ func strptr(s string) *string {
 
 func ExampleMissingCSIDriver() {
 	resources := map[reflect.Type][]any{
-		Type[*scyllav1.ScyllaCluster](): []any{
+		Type[*scyllav1.ScyllaCluster](): {
 			&scyllav1.ScyllaCluster{
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
@@ -50,7 +50,7 @@ func ExampleMissingCSIDriver() {
 				Spec: scyllav1.ScyllaClusterSpec{
 					Datacenter: scyllav1.DatacenterSpec{
 						Racks: []scyllav1.RackSpec{
-							scyllav1.RackSpec{
+							{
 								Storage: scyllav1.Storage{
 									StorageClassName: strptr("scylladb-local-xfs"),
 								},
@@ -68,7 +68,7 @@ func ExampleMissingCSIDriver() {
 				Spec: scyllav1.ScyllaClusterSpec{
 					Datacenter: scyllav1.DatacenterSpec{
 						Racks: []scyllav1.RackSpec{
-							scyllav1.RackSpec{
+							{
 								Storage: scyllav1.Storage{
 									StorageClassName: strptr("scylladb-dummy"),
 								},
@@ -79,8 +79,8 @@ func ExampleMissingCSIDriver() {
 				Status: scyllav1.ScyllaClusterStatus{},
 			},
 		},
-		Type[*v1.Pod](): []any{},
-		Type[*storagev1.StorageClass](): []any{
+		Type[*v1.Pod](): {},
+		Type[*storagev1.StorageClass](): {
 			&storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "scylladb-local-xfs",
@@ -94,7 +94,7 @@ func ExampleMissingCSIDriver() {
 				Provisioner: "dummy.csi.scylladb.com",
 			},
 		},
-		Type[*storagev1.CSIDriver](): []any{
+		Type[*storagev1.CSIDriver](): {
 			&storagev1.CSIDriver{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "dummy.csi.scylladb.com",
