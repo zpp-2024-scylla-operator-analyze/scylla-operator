@@ -1,4 +1,4 @@
-package sources
+package snapshot
 
 import (
 	"github.com/google/go-cmp/cmp"

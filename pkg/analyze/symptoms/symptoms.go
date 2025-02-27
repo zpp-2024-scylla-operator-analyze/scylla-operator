@@ -3,7 +3,7 @@ package symptoms
 import (
 	"errors"
 	"fmt"
-	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"k8s.io/klog/v2"
 )
 
@@ -13,17 +13,17 @@ type Symptom interface {
 	Name() string
 	Diagnoses() []string
 	Suggestions() []string
-	Match(*sources.DataSource2) ([]Issue, error)
+	Match(*snapshot.Snapshot) ([]Issue, error)
 }
 
 type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    func(*sources.DataSource2) []map[string]any
+	selector    func(*snapshot.Snapshot) []map[string]any
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(*sources.DataSource2) []map[string]any) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector func(*snapshot.Snapshot) []map[string]any) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
@@ -44,7 +44,7 @@ func (s *symptom) Suggestions() []string {
 	return s.suggestions
 }
 
-func (s *symptom) Match(ds *sources.DataSource2) ([]Issue, error) {
+func (s *symptom) Match(ds *snapshot.Snapshot) ([]Issue, error) {
 	res := s.selector(ds)
 	if res != nil && len(res) > 0 {
 		issues := make([]Issue, len(res))
@@ -67,14 +67,14 @@ func (s *symptom) Match(ds *sources.DataSource2) ([]Issue, error) {
 //type multiSymptom struct {
 //	name     string
 //	symptoms []*Symptom
-//	selector func(*sources.DataSource) (bool, error)
+//	selector func(*snapshot.DataSource) (bool, error)
 //}
 //
 //func NewMultiSymptom(name string, symptoms []*Symptom) AndSymptom {
 //	return &multiSymptom{
 //		name:     name,
 //		symptoms: symptoms,
-//		selector: func(_ *sources.DataSource) (bool, error) { panic("not implemented :(") },
+//		selector: func(_ *snapshot.DataSource) (bool, error) { panic("not implemented :(") },
 //	}
 //}
 //
@@ -98,7 +98,7 @@ func (s *symptom) Match(ds *sources.DataSource2) ([]Issue, error) {
 //	return suggestions
 //}
 //
-//func (m *multiSymptom) Match(ds *sources.DataSource) ([]front.Diagnosis, error) {
+//func (m *multiSymptom) Match(ds *snapshot.DataSource) ([]front.Diagnosis, error) {
 //	match, err := m.selector(ds)
 //	if err != nil {
 //		return nil, err

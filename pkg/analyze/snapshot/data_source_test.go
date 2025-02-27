@@ -1,4 +1,4 @@
-package sources
+package snapshot
 
 import (
 	"context"

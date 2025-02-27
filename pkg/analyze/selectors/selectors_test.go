@@ -2,7 +2,7 @@ package selectors
 
 import (
 	"fmt"
-	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -103,7 +103,7 @@ func ExampleMissingCSIDriver() {
 		},
 	}
 
-	snapshot := &sources.DataSource2{
+	snapshot := &snapshot.Snapshot{
 		Objects: resources,
 	}
 

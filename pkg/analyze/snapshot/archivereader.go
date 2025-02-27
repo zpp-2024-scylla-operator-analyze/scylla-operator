@@ -1,4 +1,4 @@
-package sources
+package snapshot
 
 import (
 	"context"
@@ -28,8 +28,8 @@ func getIndexerForType(indexers map[reflect.Type]cache.Indexer, objType reflect.
 	return indexer
 }
 
-func NewDataSource2FromFS(fsys fs.FS, decoder runtime.Decoder) (*DataSource2, error) {
-	ds := NewDataSource2()
+func NewSnapshotFromFS(fsys fs.FS, decoder runtime.Decoder) (*Snapshot, error) {
+	ds := NewSnapshot()
 
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

@@ -1,4 +1,4 @@
-package sources
+package snapshot
 
 import (
 	"context"
@@ -17,18 +17,18 @@ import (
 )
 
 // Może zamienić interface na runtime.Object
-type DataSource2 struct {
+type Snapshot struct {
 	Objects map[reflect.Type][]interface{}
 }
 
-func NewDataSource2() DataSource2 {
-	ds := DataSource2{
+func NewSnapshot() Snapshot {
+	ds := Snapshot{
 		Objects: make(map[reflect.Type][]interface{}),
 	}
 	return ds
 }
 
-func (ds *DataSource2) Add(obj interface{}) {
+func (ds *Snapshot) Add(obj interface{}) {
 	t := reflect.TypeOf(obj)
 	if _, exists := ds.Objects[t]; !exists {
 		ds.Objects[t] = make([]interface{}, 0)
@@ -36,7 +36,7 @@ func (ds *DataSource2) Add(obj interface{}) {
 	ds.Objects[t] = append(ds.Objects[t], obj)
 }
 
-func (ds *DataSource2) List(objType reflect.Type) []interface{} {
+func (ds *Snapshot) List(objType reflect.Type) []interface{} {
 	list, exists := ds.Objects[objType]
 	if !exists {
 		return make([]interface{}, 0)
@@ -149,7 +149,7 @@ func NewDataSourceFromClients(
 
 func BuildList(
 	ctx context.Context,
-	ds DataSource2,
+	ds Snapshot,
 	listFunc func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error),
 ) error {
 	p := pager.New(pager.SimplePageFunc(func(opts metav1.ListOptions) (runtime.Object, error) {
@@ -175,12 +175,12 @@ func BuildList(
 	return nil
 }
 
-func NewDataSource2FromListers(
+func NewSnapshotFromListers(
 	ctx context.Context,
 	kubeClient kubernetes.Interface,
 	scyllaClient scyllaversioned.Interface,
-) (*DataSource2, error) {
-	ds := NewDataSource2()
+) (*Snapshot, error) {
+	ds := NewSnapshot()
 
 	err := BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().Pods(corev1.NamespaceAll).List(ctx, options)

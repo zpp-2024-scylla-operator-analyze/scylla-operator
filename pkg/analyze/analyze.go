@@ -3,14 +3,14 @@ package analyze
 import (
 	"context"
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
-	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
 	"k8s.io/klog/v2"
 	"runtime"
 )
 
-func Analyze(ctx context.Context, ds *sources.DataSource2) error {
+func Analyze(ctx context.Context, ds *snapshot.Snapshot) error {
 	statusChan := make(chan symptoms.JobStatus)
 	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, statusChan, runtime.NumCPU())
 	matchWorkerPool.Start()

@@ -1,7 +1,7 @@
 package selectors
 
 import (
-	"github.com/scylladb/scylla-operator/pkg/analyze/sources"
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"reflect"
 	"slices"
 )
@@ -45,7 +45,7 @@ resourceLoop:
 }
 
 func (e *executor) execute(
-	ds *sources.DataSource2,
+	ds *snapshot.Snapshot,
 	callback func(map[string]any) bool,
 ) {
 	// TODO: Assert callback is ok
