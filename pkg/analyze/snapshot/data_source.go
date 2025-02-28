@@ -4,31 +4,33 @@ import (
 	"context"
 	"fmt"
 	scyllaversioned "github.com/scylladb/scylla-operator/pkg/client/scylla/clientset/versioned"
-	scyllav1listers "github.com/scylladb/scylla-operator/pkg/client/scylla/listers/scylla/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	corev1listers "k8s.io/client-go/listers/core/v1"
-	storagev1listers "k8s.io/client-go/listers/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/pager"
 	"reflect"
 )
 
 // Może zamienić interface na runtime.Object
-type Snapshot struct {
+type Snapshot interface {
+	Add(obj interface{})
+	List(objType reflect.Type) []interface{}
+}
+
+type DefaultSnapshot struct {
 	Objects map[reflect.Type][]interface{}
 }
 
-func NewSnapshot() Snapshot {
-	ds := Snapshot{
+func NewDefaultSnapshot() DefaultSnapshot {
+	ds := DefaultSnapshot{
 		Objects: make(map[reflect.Type][]interface{}),
 	}
 	return ds
 }
 
-func (ds *Snapshot) Add(obj interface{}) {
+func (ds *DefaultSnapshot) Add(obj interface{}) {
 	t := reflect.TypeOf(obj)
 	if _, exists := ds.Objects[t]; !exists {
 		ds.Objects[t] = make([]interface{}, 0)
@@ -36,23 +38,12 @@ func (ds *Snapshot) Add(obj interface{}) {
 	ds.Objects[t] = append(ds.Objects[t], obj)
 }
 
-func (ds *Snapshot) List(objType reflect.Type) []interface{} {
+func (ds *DefaultSnapshot) List(objType reflect.Type) []interface{} {
 	list, exists := ds.Objects[objType]
 	if !exists {
 		return make([]interface{}, 0)
 	}
 	return list
-}
-
-type DataSource struct {
-	PodLister            corev1listers.PodLister
-	ServiceLister        corev1listers.ServiceLister
-	SecretLister         corev1listers.SecretLister
-	ConfigMapLister      corev1listers.ConfigMapLister
-	ServiceAccountLister corev1listers.ServiceAccountLister
-	ScyllaClusterLister  scyllav1listers.ScyllaClusterLister
-	StorageClassLister   storagev1listers.StorageClassLister
-	CSIDriverLister      storagev1listers.CSIDriverLister
 }
 
 func BuildListerWithOptions[T any](
@@ -90,63 +81,6 @@ func BuildLister[T any](ctx context.Context, factory func(cache.Indexer) T, list
 	return BuildListerWithOptions[T](ctx, factory, listFunc, metav1.ListOptions{})
 }
 
-func NewDataSourceFromClients(
-	ctx context.Context,
-	kubeClient kubernetes.Interface,
-	scyllaClient scyllaversioned.Interface,
-) (*DataSource, error) {
-	podLister, err := BuildLister(ctx, corev1listers.NewPodLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return kubeClient.CoreV1().Pods(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build pod lister: %w", err)
-	}
-
-	serviceLister, err := BuildLister(ctx, corev1listers.NewServiceLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return kubeClient.CoreV1().Services(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build service lister: %w", err)
-	}
-
-	secretLister, err := BuildLister(ctx, corev1listers.NewSecretLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return kubeClient.CoreV1().Secrets(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build secret lister: %w", err)
-	}
-
-	configMapLister, err := BuildLister(ctx, corev1listers.NewConfigMapLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return kubeClient.CoreV1().ConfigMaps(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build config map lister: %w", err)
-	}
-
-	serviceAccountLister, err := BuildLister(ctx, corev1listers.NewServiceAccountLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return kubeClient.CoreV1().ServiceAccounts(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build service account lister: %w", err)
-	}
-
-	scyllaClusterLister, err := BuildLister(ctx, scyllav1listers.NewScyllaClusterLister, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-		return scyllaClient.ScyllaV1().ScyllaClusters(corev1.NamespaceAll).List(ctx, options)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("can't build scylla cluster lister: %w", err)
-	}
-
-	return &DataSource{
-		PodLister:            podLister,
-		ServiceLister:        serviceLister,
-		SecretLister:         secretLister,
-		ConfigMapLister:      configMapLister,
-		ServiceAccountLister: serviceAccountLister,
-		ScyllaClusterLister:  scyllaClusterLister,
-	}, nil
-}
-
 func BuildList(
 	ctx context.Context,
 	ds Snapshot,
@@ -179,45 +113,45 @@ func NewSnapshotFromListers(
 	ctx context.Context,
 	kubeClient kubernetes.Interface,
 	scyllaClient scyllaversioned.Interface,
-) (*Snapshot, error) {
-	ds := NewSnapshot()
+) (Snapshot, error) {
+	ds := NewDefaultSnapshot()
 
-	err := BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err := BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().Pods(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't build pod lister: %w", err)
 	}
 
-	err = BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err = BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().Services(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't build service lister: %w", err)
 	}
 
-	err = BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err = BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().Secrets(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't build secret lister: %w", err)
 	}
 
-	err = BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err = BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().ConfigMaps(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't build config map lister: %w", err)
 	}
 
-	err = BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err = BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return kubeClient.CoreV1().ServiceAccounts(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't build service account lister: %w", err)
 	}
 
-	err = BuildList(ctx, ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+	err = BuildList(ctx, &ds, func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 		return scyllaClient.ScyllaV1().ScyllaClusters(corev1.NamespaceAll).List(ctx, options)
 	})
 	if err != nil {

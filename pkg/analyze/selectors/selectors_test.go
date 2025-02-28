@@ -103,7 +103,7 @@ func ExampleMissingCSIDriver() {
 		},
 	}
 
-	snapshot := &snapshot.Snapshot{
+	snapshot := snapshot.DefaultSnapshot{
 		Objects: resources,
 	}
 
@@ -134,9 +134,9 @@ func ExampleMissingCSIDriver() {
 	selectorAny := builder.Any()
 	selectorCollect := builder.CollectAll()
 
-	fmt.Printf("%t\n", selectorAny(snapshot))
+	fmt.Printf("%t\n", selectorAny(&snapshot))
 
-	for _, tuple := range selectorCollect(snapshot) {
+	for _, tuple := range selectorCollect(&snapshot) {
 		fmt.Printf("%s %s %s\n",
 			nameScyllaCluster(tuple["scylla-cluster"]),
 			nameStorageClass(tuple["storage-class"]),

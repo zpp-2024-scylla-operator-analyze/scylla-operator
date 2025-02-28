@@ -78,11 +78,11 @@ func (b *builder) Relate(lhs, rhs string, f any) *builder {
 	return b
 }
 
-func (b *builder) CollectAll() func(*snapshot.Snapshot) []map[string]any {
+func (b *builder) CollectAll() func(snapshot.Snapshot) []map[string]any {
 	return b.Collect(math.MaxInt)
 }
 
-func (b *builder) Collect(limit int) func(*snapshot.Snapshot) []map[string]any {
+func (b *builder) Collect(limit int) func(snapshot.Snapshot) []map[string]any {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
@@ -90,7 +90,7 @@ func (b *builder) Collect(limit int) func(*snapshot.Snapshot) []map[string]any {
 		b.relations,
 	)
 
-	return func(ds *snapshot.Snapshot) []map[string]any {
+	return func(ds snapshot.Snapshot) []map[string]any {
 		result := make([]map[string]any, 0)
 		count := 0
 
@@ -107,7 +107,7 @@ func (b *builder) Collect(limit int) func(*snapshot.Snapshot) []map[string]any {
 	}
 }
 
-func (b *builder) ForEach(labels []string, function any) func(*snapshot.Snapshot) {
+func (b *builder) ForEach(labels []string, function any) func(snapshot.Snapshot) {
 	for _, label := range labels {
 		if _, contains := b.resources[label]; !contains {
 			panic("TODO: Handle undefined label")
@@ -122,7 +122,7 @@ func (b *builder) ForEach(labels []string, function any) func(*snapshot.Snapshot
 		b.relations,
 	)
 
-	return func(ds *snapshot.Snapshot) {
+	return func(ds snapshot.Snapshot) {
 		executor.execute(ds, func(resources map[string]any) bool {
 			labels := callback.Labels()
 			args := make(map[string]any, len(labels))
@@ -140,7 +140,7 @@ func (b *builder) ForEach(labels []string, function any) func(*snapshot.Snapshot
 	}
 }
 
-func (b *builder) Any() func(*snapshot.Snapshot) bool {
+func (b *builder) Any() func(snapshot.Snapshot) bool {
 	executor := newExecutor(
 		b.resources,
 		b.constraints,
@@ -148,7 +148,7 @@ func (b *builder) Any() func(*snapshot.Snapshot) bool {
 		b.relations,
 	)
 
-	return func(ds *snapshot.Snapshot) bool {
+	return func(ds snapshot.Snapshot) bool {
 		result := false
 
 		executor.execute(ds, func(_ map[string]any) bool {

@@ -133,7 +133,7 @@ func (o *AnalyzeOptions) Run(streams genericclioptions.IOStreams, cmd *cobra.Com
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var ds *snapshot.Snapshot
+	var ds snapshot.Snapshot
 	var err error
 	if len(o.ArchivePath) > 0 {
 		fs := os.DirFS(o.ArchivePath)

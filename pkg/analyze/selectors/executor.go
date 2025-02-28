@@ -45,7 +45,7 @@ resourceLoop:
 }
 
 func (e *executor) execute(
-	ds *snapshot.Snapshot,
+	ds snapshot.Snapshot,
 	callback func(map[string]any) bool,
 ) {
 	// TODO: Assert callback is ok

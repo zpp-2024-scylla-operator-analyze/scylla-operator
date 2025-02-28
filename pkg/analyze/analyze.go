@@ -10,7 +10,7 @@ import (
 	"runtime"
 )
 
-func Analyze(ctx context.Context, ds *snapshot.Snapshot) error {
+func Analyze(ctx context.Context, ds snapshot.Snapshot) error {
 	statusChan := make(chan symptoms.JobStatus)
 	matchWorkerPool := symptoms.NewMatchWorkerPool(ctx, ds, statusChan, runtime.NumCPU())
 	matchWorkerPool.Start()

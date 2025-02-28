@@ -13,17 +13,17 @@ type Symptom interface {
 	Name() string
 	Diagnoses() []string
 	Suggestions() []string
-	Match(*snapshot.Snapshot) ([]Issue, error)
+	Match(snapshot.Snapshot) ([]Issue, error)
 }
 
 type symptom struct {
 	name        string
 	diagnoses   []string
 	suggestions []string
-	selector    func(*snapshot.Snapshot) []map[string]any
+	selector    func(snapshot.Snapshot) []map[string]any
 }
 
-func NewSymptom(name string, diag string, suggestions string, selector func(*snapshot.Snapshot) []map[string]any) Symptom {
+func NewSymptom(name string, diag string, suggestions string, selector func(snapshot.Snapshot) []map[string]any) Symptom {
 	return &symptom{
 		name:        name,
 		diagnoses:   []string{diag},
@@ -44,7 +44,7 @@ func (s *symptom) Suggestions() []string {
 	return s.suggestions
 }
 
-func (s *symptom) Match(ds *snapshot.Snapshot) ([]Issue, error) {
+func (s *symptom) Match(ds snapshot.Snapshot) ([]Issue, error) {
 	res := s.selector(ds)
 	if res != nil && len(res) > 0 {
 		issues := make([]Issue, len(res))

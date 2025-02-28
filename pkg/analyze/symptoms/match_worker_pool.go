@@ -16,7 +16,7 @@ type JobStatus struct {
 }
 
 type MatchWorkerPool struct {
-	ds            *snapshot.Snapshot
+	ds            snapshot.Snapshot
 	jobs          chan *Job
 	statusChan    chan JobStatus
 	numWorkers    int
@@ -25,7 +25,7 @@ type MatchWorkerPool struct {
 	workerCancel  context.CancelFunc
 }
 
-func NewMatchWorkerPool(ctx context.Context, ds *snapshot.Snapshot, statusChan chan JobStatus, numWorkers int) *MatchWorkerPool {
+func NewMatchWorkerPool(ctx context.Context, ds snapshot.Snapshot, statusChan chan JobStatus, numWorkers int) *MatchWorkerPool {
 	workerContext, workerCancel := context.WithCancel(ctx)
 	return &MatchWorkerPool{
 		ds:            ds,
