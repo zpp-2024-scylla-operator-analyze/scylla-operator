@@ -1,0 +1,55 @@
+{{ define "resources" -}}
+	Resources GVK: {{- "\n" -}}
+	{{- range $key, $value := . -}}
+		{{- if $value -}}
+        	{{- "\t" -}}
+			{{- if $value.GetObjectKind.GroupVersionKind.Empty -}}
+				No GVK set {{- "\n" -}}
+			{{- else -}}
+				{{- $gvk := $value.GetObjectKind.GroupVersionKind -}}
+				{{- $gvk.Group }}/{{ $gvk.Version }}.{{ $gvk.Kind }}, {{ $value.Namespace -}}
+				{{- if and $value.Namespace $value.Name -}}
+					/
+				{{- end -}}
+				{{- $value.Name -}}
+				{{- if $value.GetUID -}}
+					{{- " " -}} ({{ $value.GetUID }})
+				{{- end -}}
+				{{- "\n" -}}
+			{{- end -}}
+		{{- end -}}
+	{{- end -}}
+{{end}}
+
+{{ define "symptom" -}}
+	{{.Name}} {{- "\n" -}}
+	{{- if .Diagnoses -}}
+		Diagnoses: {{- "\n" -}}
+		{{- range .Diagnoses -}}
+			{{ "\t" }}{{.}} {{- "\n" -}}
+		{{- end -}}
+	{{- else -}}
+		No Diagnoses {{- "\n" -}}
+	{{- end -}}
+	{{- if .Suggestions -}}
+		Suggestions: {{- "\n" -}}
+		{{- range .Suggestions -}}
+			{{ "\t" }}{{.}} {{- "\n" -}}
+	{{- end -}}
+	{{- else -}}
+		No suggestions {{- "\n" -}}
+	{{- end -}}
+{{end}}
+
+
+{{ define "issue" -}}
+	{{- if and .Symptom (not (and (gt (len .Symptom.Diagnoses) 0) (eq (index .Symptom.Diagnoses 0) "Node group"))) (not ( and (gt (len .Symptom.Suggestions) 0) (eq (index .Symptom.Suggestions 0) "Node group"))) -}}
+        {{- template "symptom" .Symptom -}}
+		{{- if and (.Resources) (HasValidResources .Resources) -}}
+	    	{{- template "resources" .Resources -}}
+		{{- else -}}
+			No resources related to this issue. {{- "\n" -}}
+		{{- end -}}
+		--- {{- "\n" -}}
+	{{- end -}}
+{{- end}}
