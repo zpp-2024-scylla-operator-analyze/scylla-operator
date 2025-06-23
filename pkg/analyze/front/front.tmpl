@@ -34,9 +34,15 @@
 		Suggestions: {{- "\n" -}}
 		{{- range .Suggestions -}}
 			{{ "\t" }}{{.}} {{- "\n" -}}
-	{{- end -}}
+		{{- end -}}
 	{{- else -}}
 		No suggestions {{- "\n" -}}
+	{{- end -}}
+	{{- if .ExternalIssues -}}
+		Related issues: {{- "\n" -}}
+		{{- range .ExternalIssues -}}
+			{{ "\t" }}{{ .Name }} ({{ .Reference }}) {{- "\n" -}}
+		{{- end -}}
 	{{- end -}}
 {{end}}
 

@@ -3,6 +3,7 @@ package symptoms
 import (
 	"errors"
 	"fmt"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"k8s.io/klog/v2"
@@ -14,22 +15,35 @@ type Symptom interface {
 	Name() string
 	Diagnoses() []string
 	Suggestions() []string
+	ExternalIssues() []ExternalIssueReference
 	Match(snapshot.Snapshot) ([]Issue, error)
 }
 
 type symptom struct {
-	name        string
-	diagnoses   []string
-	suggestions []string
-	selector    *selector.Selector
+	name           string
+	diagnoses      []string
+	suggestions    []string
+	externalIssues []ExternalIssueReference
+	selector       *selector.Selector
 }
 
 func NewSymptom(name string, diagnoses []string, suggestions []string, selector *selector.Selector) Symptom {
 	return &symptom{
-		name:        name,
-		diagnoses:   diagnoses,
-		suggestions: suggestions,
-		selector:    selector,
+		name:           name,
+		diagnoses:      diagnoses,
+		suggestions:    suggestions,
+		externalIssues: make([]ExternalIssueReference, 0),
+		selector:       selector,
+	}
+}
+
+func NewSymptomWithExternalIssues(name string, diagnoses []string, suggestions []string, externalIssues []ExternalIssueReference, selector *selector.Selector) Symptom {
+	return &symptom{
+		name:           name,
+		diagnoses:      diagnoses,
+		suggestions:    suggestions,
+		externalIssues: externalIssues,
+		selector:       selector,
 	}
 }
 
@@ -45,6 +59,10 @@ func (s *symptom) Suggestions() []string {
 	return s.suggestions
 }
 
+func (s *symptom) ExternalIssues() []ExternalIssueReference {
+	return s.externalIssues
+}
+
 func (s *symptom) Match(sn snapshot.Snapshot) ([]Issue, error) {
 	it, err := s.selector.IteratorFromSnapshot(sn)
 	if err != nil {
@@ -56,7 +74,7 @@ func (s *symptom) Match(sn snapshot.Snapshot) ([]Issue, error) {
 		return nil, err
 	}
 
-	if res != nil && len(res) > 0 {
+	if len(res) > 0 {
 		issues := make([]Issue, len(res))
 
 		var sym Symptom = s

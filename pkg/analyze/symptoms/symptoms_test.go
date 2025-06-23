@@ -2,9 +2,10 @@ package symptoms
 
 import (
 	"fmt"
-	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"reflect"
 	"testing"
+
+	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 )
 
 type dummySymptom struct {
@@ -46,6 +47,10 @@ func (d *dummySymptom) Suggestions() []string {
 	return d.suggestions
 }
 
+func (d *dummySymptom) ExternalIssues() []ExternalIssueReference {
+	return make([]ExternalIssueReference, 0)
+}
+
 func (d *dummySymptom) Match(snapshot snapshot.Snapshot) ([]Issue, error) {
 	return d.matchCallback(snapshot)
 }
@@ -75,6 +80,10 @@ func (t *testSymptom) Diagnoses() []string {
 }
 
 func (t *testSymptom) Suggestions() []string {
+	return nil
+}
+
+func (t *testSymptom) ExternalIssues() []ExternalIssueReference {
 	return nil
 }
 

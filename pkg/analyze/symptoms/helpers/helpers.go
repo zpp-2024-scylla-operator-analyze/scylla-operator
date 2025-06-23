@@ -1,9 +1,12 @@
-package symptoms
+package helpers
 
 import (
+	"reflect"
+	"strings"
+
+	scyllav1alpha1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
 )
 
 func fieldIsValid(f reflect.Value) bool {
@@ -51,4 +54,24 @@ func MeetsNodeSelectorPlacementRules(node *v1.Node, nodeSelector map[string]stri
 		}
 	}
 	return true
+}
+
+func RunsGkeVersion(node *v1.Node, gkeVersion string) bool {
+	runsGke := strings.HasSuffix(node.Status.NodeInfo.KernelVersion, "-gke")
+	if !runsGke {
+		return false
+	}
+	return node.Status.NodeInfo.KubeletVersion == gkeVersion
+}
+
+func NodeConfigTunesNode(nodeConfig *scyllav1alpha1.NodeConfig, node *v1.Node) bool {
+	for _, nodeStatus := range nodeConfig.Status.NodeStatuses {
+		if !nodeStatus.TunedNode {
+			continue
+		}
+		if nodeStatus.Name == node.Name {
+			return true
+		}
+	}
+	return false
 }
