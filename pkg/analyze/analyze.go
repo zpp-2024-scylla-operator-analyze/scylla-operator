@@ -3,12 +3,13 @@ package analyze
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/scylladb/scylla-operator/pkg/analyze/front"
 	"github.com/scylladb/scylla-operator/pkg/analyze/snapshot"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/rules"
 	"k8s.io/klog/v2"
-	"os"
 )
 
 func Analyze(ctx context.Context, ds snapshot.Snapshot) error {

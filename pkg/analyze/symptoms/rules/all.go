@@ -1,5 +1,7 @@
 package rules
 
-import "github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
+import (
+	"slices"
+)
 
-var Symptoms = append([]symptoms.SymptomTreeNode{}, StorageSymptoms...)
+var Symptoms = slices.Concat(StorageSymptoms, GkeSymptoms)

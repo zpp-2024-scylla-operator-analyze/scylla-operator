@@ -6,6 +6,7 @@ import (
 
 	"github.com/scylladb/scylla-operator/pkg/analyze/selector"
 	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms"
+	"github.com/scylladb/scylla-operator/pkg/analyze/symptoms/helpers"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1"
 	scyllav1alpha1 "github.com/scylladb/scylla-operator/pkg/api/scylla/v1alpha1"
 	v1 "k8s.io/api/core/v1"
@@ -19,7 +20,7 @@ const (
 )
 
 var (
-	nodeConfigConditionRegexp = regexp.MustCompile(nodeConfigConditionPattern)
+	nodeConfigConditionRegexp = regexp.MustCompile(nodeSetupFsDegradedPattern)
 )
 
 var StorageSymptoms = []symptoms.SymptomTreeNode{
@@ -166,7 +167,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 		selector.
 			New().
 			Select("scylla-cluster", selector.Type[*scyllav1.ScyllaCluster](), func(c *scyllav1.ScyllaCluster) (bool, error) {
-				return !symptoms.MeetsCondition(c, "Available", "True"), nil
+				return !helpers.MeetsCondition(c, "Available", "True"), nil
 			}).
 			Select("scylla-pod", selector.Type[*v1.Pod](), func(p *v1.Pod) (bool, error) {
 				return p.Status.Phase != v1.PodSucceeded, nil
@@ -212,7 +213,7 @@ func buildNodeConfigSymptoms() symptoms.SymptomTreeNode {
 				return true, nil
 			}).
 			Relate("node-config", "scylla-node", func(nc *scyllav1alpha1.NodeConfig, n *v1.Node) (bool, error) {
-				return symptoms.MeetsNodeSelectorPlacementRules(n, nc.Spec.Placement.NodeSelector), nil
+				return helpers.MeetsNodeSelectorPlacementRules(n, nc.Spec.Placement.NodeSelector), nil
 			}).
 			// node-config tunes the node on which csi-pod is placed
 			Relate("csi-pod", "node-config", func(csiPod *v1.Pod, nodeConfig *scyllav1alpha1.NodeConfig) (bool, error) {
